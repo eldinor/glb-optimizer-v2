@@ -1,6 +1,7 @@
 import type { GltfAssetInfo } from "./extractGltfAssetInfo";
 
 export interface GltfAssetInfoRow {
+    section?: string;
     label?: string;
     items: string[];
     variant: "default" | "extensions";
@@ -8,6 +9,7 @@ export interface GltfAssetInfoRow {
 
 function pushRow(
     rows: GltfAssetInfoRow[],
+    section: string | undefined,
     label: string | undefined,
     items: Array<string | null | undefined>,
     variant: GltfAssetInfoRow["variant"] = "default"
@@ -18,6 +20,7 @@ function pushRow(
     }
 
     rows.push({
+        section,
         label,
         items: filteredItems,
         variant,
@@ -27,22 +30,24 @@ function pushRow(
 export function formatGltfAssetInfoRows(info: GltfAssetInfo): GltfAssetInfoRow[] {
     const rows: GltfAssetInfoRow[] = [];
 
-    pushRow(rows, "Asset Metadata", [`Container: ${info.container}`, `Version: glTF ${info.version}`, `Generator: ${info.generator}`]);
-    pushRow(rows, undefined, [info.author ? `Author: ${info.author}` : null, info.copyright ? `Copyright: ${info.copyright}` : null]);
-    pushRow(rows, "Scene Stats", [`Scenes: ${info.sceneCount}`, `Nodes: ${info.nodeCount}`, `Meshes: ${info.meshCount}`, `Primitives: ${info.primitiveCount}`]);
-    pushRow(rows, "Resources", [`Materials: ${info.materialCount}`, `Textures: ${info.textureCount}`, `Images: ${info.imageCount}`, `Animations: ${info.animationCount}`]);
-    pushRow(rows, "Runtime", [`Skins: ${info.skinCount}`, `Cameras: ${info.cameraCount}`, `Lights: ${info.lightCount}`, `Default scene: ${info.defaultSceneIndex === null ? "n/a" : info.defaultSceneIndex}`]);
-    pushRow(rows, "Extensions", [info.extensionsUsed.length ? `Used: ${info.extensionsUsed.join(", ")}` : null], "extensions");
-    pushRow(rows, undefined, [info.extensionsRequired.length ? `Required: ${info.extensionsRequired.join(", ")}` : null], "extensions");
-    pushRow(
-        rows,
-        "Extras",
-        [
-            info.rootExtrasSummary ? `Extras: ${info.rootExtrasSummary}` : null,
-            info.assetExtrasSummary ? `Asset extras: ${info.assetExtrasSummary}` : null,
-        ],
-        "extensions"
-    );
+    pushRow(rows, "Asset Metadata", "Container", [info.container]);
+    pushRow(rows, undefined, "Version", [`glTF ${info.version}`]);
+    pushRow(rows, undefined, "Generator", [info.generator]);
+    pushRow(rows, undefined, "Author", [info.author ? info.author : null]);
+    pushRow(rows, undefined, "Copyright", [info.copyright ? info.copyright : null]);
+    pushRow(rows, "Scene Stats", "Scenes", [`${info.sceneCount}`]);
+    pushRow(rows, undefined, "Nodes", [`${info.nodeCount}`]);
+    pushRow(rows, undefined, "Meshes", [`${info.meshCount}`]);
+    pushRow(rows, undefined, "Primitives", [`${info.primitiveCount}`]);
+    pushRow(rows, undefined, "Materials", [`${info.materialCount}`]);
+    pushRow(rows, undefined, "Textures", [`${info.textureCount}`]);
+    pushRow(rows, undefined, "Images", [`${info.imageCount}`]);
+    pushRow(rows, undefined, "Animations", [`${info.animationCount}`]);
+    pushRow(rows, undefined, "Skins", [`${info.skinCount}`]);
+    pushRow(rows, undefined, "Cameras", [`${info.cameraCount}`]);
+    pushRow(rows, undefined, "Lights", [`${info.lightCount}`]);
+    pushRow(rows, "Extensions", "Used", info.extensionsUsed, "extensions");
+    pushRow(rows, undefined, "Required", info.extensionsRequired, "extensions");
 
     return rows;
 }

@@ -16,16 +16,18 @@
 .assetInfoSidebarHeader {
     position: sticky;
     top: 0;
-    padding: 10px 10px 0;
-    background: rgba(255, 255, 255, 0.96);
+    padding: 10px;
+    background: rgba(241, 245, 249, 0.98);
+    border-bottom: 1px solid rgba(15, 23, 42, 0.08);
 }
 
 .assetInfoPanelLabel {
     display: block;
-    margin-bottom: 6px;
-    color: #64748b;
+    margin-bottom: 0;
+    color: #475569;
     font-size: 0.74rem;
     letter-spacing: 0.08em;
+    font-weight: 600;
     text-transform: uppercase;
 }
 
@@ -33,7 +35,25 @@
     padding: 8px 10px 12px;
 }
 
-.assetInfoRow {
+.assetInfoSectionHeader {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(15, 23, 42, 0.08);
+    color: #475569;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.assetInfoPanel > div:first-child .assetInfoSectionHeader {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: 0;
+}
+
+.assetInfoRow,
+.assetInfoExtensionGroup {
     display: flex;
     align-items: flex-start;
     gap: 10px;
@@ -42,7 +62,8 @@
     border-top: 1px solid rgba(15, 23, 42, 0.06);
 }
 
-.assetInfoRow:first-child {
+.assetInfoRow:first-child,
+.assetInfoExtensionGroup:first-child {
     padding-top: 0;
     border-top: 0;
 }
@@ -70,7 +91,33 @@
     line-height: 1.35;
 }
 
-.assetInfoExtensions .assetInfoRowValues span {
+.assetInfoExtensionGroup {
+    display: block;
+}
+
+.assetInfoExtensionColumns {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+    padding: 8px 0;
+    border-top: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.assetInfoExtensionLabel {
+    color: #64748b;
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.assetInfoExtensionValues {
+    display: grid;
+    gap: 4px;
+    margin-top: 6px;
+    padding-left: 0;
+}
+
+.assetInfoExtensionValues span {
     color: #334155;
     font-family: Consolas, "Courier New", monospace;
     font-size: 0.72rem;
@@ -87,6 +134,11 @@
 
     .assetInfoRow {
         flex-direction: column;
+    }
+
+    .assetInfoExtensionColumns {
+        grid-template-columns: 1fr;
+        gap: 12px;
     }
 
     .assetInfoRowLabel {
