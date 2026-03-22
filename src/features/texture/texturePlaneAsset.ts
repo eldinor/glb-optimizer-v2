@@ -11,7 +11,7 @@ export function isStandaloneTextureFile(file: File): boolean {
     return SUPPORTED_STANDALONE_TEXTURE_EXTENSIONS.has(getFileExtension(file.name));
 }
 
-function getTextureMimeType(file: File): string {
+export function getTextureMimeType(file: File): string {
     if (file.type) {
         return file.type;
     }

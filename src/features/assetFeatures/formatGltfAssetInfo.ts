@@ -30,8 +30,8 @@ function pushRow(
 export function formatGltfAssetInfoRows(info: GltfAssetInfo): GltfAssetInfoRow[] {
     const rows: GltfAssetInfoRow[] = [];
 
-    pushRow(rows, "Asset Metadata", "Container", [info.container]);
-    pushRow(rows, undefined, "Version", [`glTF ${info.version}`]);
+    // pushRow(rows, "Asset Metadata", "Container", [info.container]);
+    // pushRow(rows, undefined, "Version", [`glTF ${info.version}`]);
     pushRow(rows, undefined, "Generator", [info.generator]);
     pushRow(rows, undefined, "Author", [info.author ? info.author : null]);
     pushRow(rows, undefined, "Copyright", [info.copyright ? info.copyright : null]);

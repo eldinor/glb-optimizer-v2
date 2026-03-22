@@ -1,22 +1,17 @@
 .assetInfoSidebar {
-    position: absolute;
-    top: 84px;
-    left: 14px;
-    z-index: 7;
-    width: min(420px, calc(50vw - 22px));
-    max-height: calc(100vh - 180px);
+    width: 100%;
+    max-height: 100%;
     overflow: auto;
     border: 1px solid rgba(15, 23, 42, 0.08);
     background: rgba(255, 255, 255, 0.94);
     box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
     backdrop-filter: blur(12px);
-    border-radius: 10px;
 }
 
 .assetInfoSidebarHeader {
     position: sticky;
     top: 0;
-    padding: 10px;
+    padding: 8px 10px;
     background: rgba(241, 245, 249, 0.98);
     border-bottom: 1px solid rgba(15, 23, 42, 0.08);
 }
@@ -32,12 +27,12 @@
 }
 
 .assetInfoPanel {
-    padding: 8px 10px 12px;
+    padding: 0;
 }
 
 .assetInfoSectionHeader {
     margin-top: 10px;
-    padding-top: 10px;
+    padding: 10px 10px 0;
     border-top: 1px solid rgba(15, 23, 42, 0.08);
     color: #475569;
     font-size: 0.72rem;
@@ -48,7 +43,7 @@
 
 .assetInfoPanel > div:first-child .assetInfoSectionHeader {
     margin-top: 0;
-    padding-top: 0;
+    padding-top: 10px;
     border-top: 0;
 }
 
@@ -58,7 +53,7 @@
     align-items: flex-start;
     gap: 10px;
     margin-top: 0;
-    padding: 8px 0;
+    padding: 8px 10px;
     border-top: 1px solid rgba(15, 23, 42, 0.06);
 }
 
@@ -99,7 +94,7 @@
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 18px;
-    padding: 8px 0;
+    padding: 8px 10px;
     border-top: 1px solid rgba(15, 23, 42, 0.06);
 }
 
@@ -125,13 +120,6 @@
 }
 
 @media (max-width: 768px) {
-    .assetInfoSidebar {
-        top: 114px;
-        left: 10px;
-        width: calc(100vw - 20px);
-        max-height: 32vh;
-    }
-
     .assetInfoRow {
         flex-direction: column;
     }

@@ -20,7 +20,6 @@
     right: 0;
     z-index: 10;
     pointer-events: none;
-    padding: 0 0 12px;
 }
 
 .topBarRow {
@@ -54,10 +53,21 @@
     text-transform: uppercase;
 }
 
+.topStatusStack {
+    position: absolute;
+    top: 52px;
+    left: 0;
+    right: 0;
+    z-index: 9;
+    display: grid;
+    justify-items: center;
+    gap: 10px;
+    pointer-events: none;
+}
+
 .topInfo,
 .topInfoSecondary {
     width: min(50vw, 780px);
-    margin: 10px auto 0;
     padding: 6px 12px;
     color: #0f172a;
     text-align: center;
@@ -79,6 +89,15 @@
     position: absolute;
     inset: 0;
     overflow: hidden;
+}
+
+.leftRail {
+    position: absolute;
+    top: 89px;
+    left: 0;
+    z-index: 7;
+    width: min(420px, 50vw);
+    max-height: calc(100vh - 159px);
 }
 
 .footerBar {
@@ -222,7 +241,6 @@
     background: rgba(255, 255, 255, 0.97);
     box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18);
     pointer-events: auto;
-    border-radius: 12px;
 }
 
 .panelOverlay {
@@ -296,6 +314,16 @@
 @media (max-width: 768px) {
     .topBarRow {
         flex-direction: column;
+    }
+
+    .leftRail {
+        top: 92px;
+        width: 100vw;
+        max-height: 32vh;
+    }
+
+    .topStatusStack {
+        top: 94px;
     }
 
     .topInfo,

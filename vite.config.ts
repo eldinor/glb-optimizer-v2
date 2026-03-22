@@ -6,4 +6,7 @@ export default defineConfig({
     server: {
         port: 1340,
     },
+    test: {
+        environment: "node",
+    },
 });

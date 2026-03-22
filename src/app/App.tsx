@@ -496,11 +496,16 @@ export function App() {
                         <span className="topMetricLabel">{status.optimizedCompression}</span>
                     </div>
                 </div>
-                <div className="topInfo">{status.message}</div>
-                {status.warning ? <div className="topInfoSecondary">{status.warning}</div> : null}
             </header>
 
-            <AssetInfoPanel info={sourceAssetInfo} />
+            <div className="topStatusStack">
+                <div className="topInfo">{status.message}</div>
+                {status.warning ? <div className="topInfoSecondary">{status.warning}</div> : null}
+            </div>
+
+            <div className="leftRail">
+                <AssetInfoPanel info={sourceAssetInfo} />
+            </div>
 
             {settingsOpen ? (
                 <div className="overlayContainer">

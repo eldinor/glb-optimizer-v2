@@ -35,13 +35,17 @@ function getBaseName(value: string): string {
     return lastSlashIndex === -1 ? normalized : normalized.slice(lastSlashIndex + 1);
 }
 
-function resolveRelativePath(baseFileName: string, resourceUri: string): string {
-    const normalizedUri = normalizePath(resourceUri);
-    if (!normalizedUri || normalizedUri.startsWith("data:")) {
-        return normalizedUri;
+export function resolveRelativePath(baseFileName: string, resourceUri: string): string {
+    if (!resourceUri) {
+        return resourceUri;
     }
 
-    if (/^[a-z]+:/i.test(normalizedUri) || normalizedUri.startsWith("/")) {
+    if (/^[a-z]+:/i.test(resourceUri) || resourceUri.startsWith("/")) {
+        return resourceUri;
+    }
+
+    const normalizedUri = normalizePath(resourceUri);
+    if (!normalizedUri || normalizedUri.startsWith("data:")) {
         return normalizedUri;
     }
 
@@ -134,7 +138,7 @@ function getReusableOptimizerOptions(settings: OptimizerSettings): GltfOptimizer
     };
 }
 
-function getTextureOutputExtension(mimeType: string | null | undefined): string {
+export function getTextureOutputExtension(mimeType: string | null | undefined): string {
     if (mimeType === "image/webp") {
         return ".webp";
     }
@@ -154,7 +158,7 @@ function getTextureOutputExtension(mimeType: string | null | undefined): string 
     return ".bin";
 }
 
-function getTextureCompressionLabel(mimeType: string | null | undefined): string {
+export function getTextureCompressionLabel(mimeType: string | null | undefined): string {
     if (!mimeType) {
         return "Texture";
     }
