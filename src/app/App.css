@@ -1,0 +1,277 @@
+.appShell {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    background: #2a2342;
+    color: #eff4fb;
+    overflow: hidden;
+    font-family: "Segoe UI", sans-serif;
+}
+
+.topBar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
+    pointer-events: none;
+    padding: 0 0 12px;
+}
+
+.topBarRow {
+    display: flex;
+    min-height: 42px;
+    background: rgba(22, 45, 58, 0.92);
+}
+
+.topColumn {
+    flex: 1 1 50%;
+    min-width: 0;
+    padding: 8px 14px;
+    color: antiquewhite;
+}
+
+.topColumn strong {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.topMetricLabel {
+    display: block;
+    margin-bottom: 6px;
+    color: #a4bdd6;
+    font-size: 0.74rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.topInfo,
+.topInfoSecondary {
+    width: min(50vw, 780px);
+    margin: 10px auto 0;
+    padding: 6px 12px;
+    color: #fff;
+    text-align: center;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.topInfo {
+    background: #3b09e0;
+}
+
+.topInfoSecondary {
+    background: #29069c;
+}
+
+.viewerFrame {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+}
+
+.footerBar {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-height: 70px;
+    padding: 8px 12px;
+    background: #201936;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    overflow-x: auto;
+}
+
+.footerCluster {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: nowrap;
+}
+
+.footerBrand {
+    margin-right: auto;
+    padding-right: 10px;
+}
+
+.brandTitle {
+    font-weight: 700;
+    color: #fff;
+}
+
+.brandMeta {
+    color: #9fb3c7;
+    font-size: 0.84rem;
+}
+
+.footerButton,
+.footerSelect {
+    height: 44px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: #162d3a;
+    color: #f8fbff;
+    cursor: pointer;
+    flex: 0 0 auto;
+}
+
+.footerButton {
+    padding: 0 16px;
+    font-weight: 600;
+}
+
+.footerButton:hover,
+.footerSelect:hover {
+    background: #214253;
+}
+
+.footerButton:disabled {
+    opacity: 0.7;
+    cursor: progress;
+}
+
+.footerPrimary {
+    background: #2f8fda;
+}
+
+.footerAccent {
+    background: #e0684b;
+}
+
+.footerSelect {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px;
+}
+
+.footerSelect span {
+    color: #c5d7e9;
+    font-size: 0.82rem;
+}
+
+.footerSelect select {
+    min-width: 120px;
+    border: 0;
+    background: transparent;
+    color: inherit;
+}
+
+.hiddenInput {
+    display: none;
+}
+
+.overlayContainer {
+    position: absolute;
+    inset: 48px 0 88px;
+    z-index: 8;
+    display: grid;
+    place-items: start center;
+    pointer-events: none;
+}
+
+.panelOverlay,
+.helpOverlay {
+    max-height: calc(100vh - 160px);
+    overflow: auto;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(15, 23, 34, 0.96);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4);
+    pointer-events: auto;
+}
+
+.panelOverlay {
+    width: min(520px, calc(100vw - 32px));
+}
+
+.helpOverlay {
+    width: min(760px, calc(100vw - 32px));
+}
+
+.overlayHeader {
+    position: sticky;
+    top: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    background: rgba(22, 45, 58, 0.96);
+}
+
+.overlayHeader h2 {
+    margin: 0;
+    font-size: 1rem;
+}
+
+.overlayClose {
+    border: 0;
+    background: transparent;
+    color: #fff;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.helpContent {
+    padding: 16px;
+    color: #d7e4f3;
+    line-height: 1.5;
+}
+
+.helpContent h3 {
+    margin: 18px 0 6px;
+    color: #fff;
+}
+
+.compareBadge {
+    position: absolute;
+    top: 52px;
+    left: 50%;
+    z-index: 5;
+    transform: translateX(-50%);
+    padding: 6px 12px;
+    background: rgba(59, 9, 224, 0.92);
+    color: #fff;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.25);
+}
+
+@media (max-width: 1080px) {
+    .footerBar {
+        flex-wrap: wrap;
+        justify-content: flex-start;
+    }
+
+    .footerBrand {
+        width: 100%;
+        margin-right: 0;
+    }
+}
+
+@media (max-width: 768px) {
+    .topBarRow {
+        flex-direction: column;
+    }
+
+    .topInfo,
+    .topInfoSecondary {
+        width: calc(100vw - 20px);
+    }
+
+    .footerBar {
+        min-height: 58px;
+    }
+
+    .footerButton,
+    .footerSelect {
+        height: 40px;
+    }
+
+    .compareBadge {
+        width: calc(100vw - 32px);
+        text-align: center;
+    }
+}

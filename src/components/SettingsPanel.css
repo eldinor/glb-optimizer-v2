@@ -1,0 +1,52 @@
+.settingsPanel {
+    padding: 18px;
+    background: transparent;
+}
+
+.settingsIntro h2,
+.settingsSection h2 {
+    margin: 0;
+    font-size: 1rem;
+}
+
+.settingsSection + .settingsSection,
+.settingsIntro + .settingsSection {
+    margin-top: 18px;
+}
+
+.settingsGrid {
+    display: grid;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.fieldRow {
+    display: grid;
+    gap: 8px;
+    font-size: 0.94rem;
+    color: #d7e4f3;
+}
+
+.fieldRow input,
+.fieldRow select {
+    width: 100%;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05);
+    color: inherit;
+    padding: 10px 12px;
+}
+
+.checkboxRow {
+    grid-template-columns: 1fr auto;
+    align-items: center;
+}
+
+.checkboxRow input {
+    width: 18px;
+    height: 18px;
+    padding: 0;
+}
+
+.settingsFooter {
+    margin-top: 18px;
+}
