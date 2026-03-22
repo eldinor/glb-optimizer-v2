@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { AppStatus, ScreenshotCompareState } from "./model";
+import type { AppStatus, LoadedAssetKind, ScreenshotCompareState } from "./model";
 import { DEFAULT_SETTINGS } from "./defaultSettings";
 import { usePersistentSettings } from "./usePersistentSettings";
 import { SettingsPanel } from "../components/SettingsPanel";
@@ -17,7 +17,7 @@ const INITIAL_STATUS: AppStatus = {
     sourceCompression: "No Compression",
     optimizedLabel: "Converted Size",
     optimizedCompression: "No Compression",
-    message: "Open a scene or drop files onto the render area.",
+    message: "Open a scene or supported texture, or drop files onto the render area.",
     warning: "",
 };
 
@@ -45,7 +45,13 @@ export function App() {
     const [selectedEnvironmentId, setSelectedEnvironmentId] = useState(ENVIRONMENT_PRESETS[0].id);
     const [skyboxEnabled, setSkyboxEnabled] = useState(true);
     const [wireframeEnabled, setWireframeEnabled] = useState(false);
-    const [optimizedObjectUrl, setOptimizedObjectUrl] = useState<string | null>(null);
+    const [optimizedAsset, setOptimizedAsset] = useState<{
+        url: string;
+        kind: LoadedAssetKind;
+        downloadFileName: string;
+        previewUrl: string;
+        previewKind: LoadedAssetKind;
+    } | null>(null);
     const [sourceSceneVersion, setSourceSceneVersion] = useState(0);
     const [isOptimizing, setIsOptimizing] = useState(false);
     const [compareState, setCompareState] = useState<ScreenshotCompareState | null>(null);
@@ -75,11 +81,16 @@ export function App() {
 
     useEffect(() => {
         return () => {
-            if (optimizedObjectUrl) {
-                URL.revokeObjectURL(optimizedObjectUrl);
+            if (!optimizedAsset) {
+                return;
+            }
+
+            URL.revokeObjectURL(optimizedAsset.url);
+            if (optimizedAsset.previewUrl !== optimizedAsset.url) {
+                URL.revokeObjectURL(optimizedAsset.previewUrl);
             }
         };
-    }, [optimizedObjectUrl]);
+    }, [optimizedAsset]);
 
     const updateSourceStatusFromLoadedAsset = () => {
         const asset = viewerRef.current?.getLoadedAssetInfo();
@@ -157,31 +168,50 @@ export function App() {
         if (!asset) {
             setStatus((current) => ({
                 ...current,
-                message: "Load a `.glb` or `.gltf` file first, then run optimization.",
+                message: "Load a `.glb`, `.gltf`, or supported texture file first.",
             }));
             return;
         }
 
         setIsOptimizing(true);
-        setStatus((current) => ({
-            ...current,
-            message: `Optimizing ${asset.primaryFileName}...`,
-            warning: "Optimization currently exports `.glb` output only.",
-        }));
+            setStatus((current) => ({
+                ...current,
+                message: `${asset.kind === "texture" ? "Converting" : "Optimizing"} ${asset.primaryFileName}...`,
+                warning:
+                    asset.kind === "texture"
+                        ? settings.textureExportMode === "image"
+                            ? "Texture-only inputs are optimized through a generated plane scene, then exported as an image."
+                            : "Texture-only inputs are wrapped on a preview plane and exported as optimized `.glb` output."
+                        : "Optimization currently exports `.glb` output only.",
+            }));
 
         try {
             const result = await optimizeLoadedAsset(asset, settings);
-            if (optimizedObjectUrl) {
-                URL.revokeObjectURL(optimizedObjectUrl);
+            if (optimizedAsset) {
+                URL.revokeObjectURL(optimizedAsset.url);
+                if (optimizedAsset.previewUrl !== optimizedAsset.url) {
+                    URL.revokeObjectURL(optimizedAsset.previewUrl);
+                }
             }
 
-            setOptimizedObjectUrl(result.objectUrl);
+            setOptimizedAsset({
+                url: result.objectUrl,
+                kind: result.kind,
+                downloadFileName: result.downloadFileName,
+                previewUrl: result.previewObjectUrl,
+                previewKind: result.previewKind,
+            });
             lastOptimizedSettingsSignatureRef.current = getSettingsSignature(settings);
             setStatus((current) => ({
                 ...current,
                 optimizedLabel: formatMegabytes(result.sizeBytes),
                 optimizedCompression: result.compressionLabel,
-                message: "Optimization complete. The optimized GLB is ready to download.",
+                message:
+                    asset.kind === "texture"
+                        ? settings.textureExportMode === "image"
+                            ? "Texture optimization complete. The optimized image is ready to download, and the updated plane preview is shown on the right."
+                            : "Texture optimization complete. The optimized GLB preview is ready to download."
+                        : "Optimization complete. The optimized GLB is ready to download.",
             }));
         } catch (error) {
             setStatus((current) => ({
@@ -194,27 +224,25 @@ export function App() {
     };
 
     const downloadOptimizedAsset = () => {
-        if (!optimizedObjectUrl) {
+        if (!optimizedAsset) {
             setStatus((current) => ({
                 ...current,
-                message: "Run optimization first to generate a downloadable GLB.",
+                message: "Run optimization first to generate a downloadable file.",
             }));
             return;
         }
 
-        const asset = viewerRef.current?.getLoadedAssetInfo();
-        const baseName = asset?.primaryFileName.replace(/\.[^/.]+$/, "") ?? "optimized-scene";
         const link = document.createElement("a");
-        link.href = optimizedObjectUrl;
-        link.download = `${baseName}-opt.glb`;
+        link.href = optimizedAsset.url;
+        link.download = optimizedAsset.downloadFileName;
         link.click();
     };
 
     const runScreenshotCompare = async () => {
-        if (!optimizedObjectUrl) {
+        if (!optimizedAsset) {
             setStatus((current) => ({
                 ...current,
-                message: "Optimize a GLB first so the compare workflow has an optimized view to measure.",
+                message: "Run optimization first so the compare workflow has an optimized view to measure.",
             }));
             return;
         }
@@ -314,13 +342,13 @@ export function App() {
                             </button>
                         </div>
                         <div className="helpContent">
-                            <p>Open a scene, adjust settings, run Optimize GLB, then compare or download the result.</p>
+                            <p>Open a scene or supported texture, adjust settings, then run optimization or conversion before downloading the result.</p>
                             <h3>Basic Optimization</h3>
                             <p>Dedup, Prune, Flatten, Join, Resample, Weld, Simplify, Quantize, Reorder, Meshopt, and KTX2 texture modes are available from Settings.</p>
                             <h3>Compare View</h3>
                             <p>The left half shows the source scene. The right half shows the optimized GLB. Screenshot compare overlays the diff image on the optimized side.</p>
                             <h3>Files</h3>
-                            <p>Use Open or drag files onto the render area. `.glb` and `.gltf` can be optimized, and the app exports `.glb` output.</p>
+                            <p>Use Open or drag files onto the render area. `.glb` and `.gltf` are optimized to `.glb`. Standalone PNG, JPG, JPEG, and WEBP textures can be optimized through a generated plane and exported either as an image or as a GLB plane.</p>
                         </div>
                     </div>
                 </div>
@@ -332,16 +360,19 @@ export function App() {
                     environment={selectedEnvironment}
                     skyboxEnabled={skyboxEnabled}
                     wireframeEnabled={wireframeEnabled}
-                    optimizedAssetUrl={optimizedObjectUrl}
+                    optimizedAsset={optimizedAsset ? { url: optimizedAsset.previewUrl, kind: optimizedAsset.previewKind } : null}
                     sourceSceneVersion={sourceSceneVersion}
                     onSourceAssetLoaded={async (asset, reason) => {
                         setSourceSceneVersion((current) => current + 1);
                         setCompareState(null);
 
                         if (reason === "load") {
-                            if (optimizedObjectUrl) {
-                                URL.revokeObjectURL(optimizedObjectUrl);
-                                setOptimizedObjectUrl(null);
+                            if (optimizedAsset) {
+                                URL.revokeObjectURL(optimizedAsset.url);
+                                if (optimizedAsset.previewUrl !== optimizedAsset.url) {
+                                    URL.revokeObjectURL(optimizedAsset.previewUrl);
+                                }
+                                setOptimizedAsset(null);
                             }
                             lastOptimizedSettingsSignatureRef.current = null;
                             setAnimationState(EMPTY_ANIMATION_STATE);
@@ -352,7 +383,7 @@ export function App() {
 
                         updateSourceStatusFromLoadedAsset();
 
-                        if (!optimizedObjectUrl || !lastOptimizedSettingsSignatureRef.current) {
+                        if (!optimizedAsset || !lastOptimizedSettingsSignatureRef.current) {
                             resetOptimizedStatus();
                             return;
                         }
@@ -364,21 +395,35 @@ export function App() {
                         setIsOptimizing(true);
                         setStatus((current) => ({
                             ...current,
-                            message: `Reloaded ${asset.primaryFileName}. Re-optimizing with updated settings...`,
+                            message: `Reloaded ${asset.primaryFileName}. Re-running optimization with updated settings...`,
                         }));
 
                         try {
                             const result = await optimizeLoadedAsset(asset, settings);
-                            if (optimizedObjectUrl) {
-                                URL.revokeObjectURL(optimizedObjectUrl);
+                            if (optimizedAsset) {
+                                URL.revokeObjectURL(optimizedAsset.url);
+                                if (optimizedAsset.previewUrl !== optimizedAsset.url) {
+                                    URL.revokeObjectURL(optimizedAsset.previewUrl);
+                                }
                             }
-                            setOptimizedObjectUrl(result.objectUrl);
+                            setOptimizedAsset({
+                                url: result.objectUrl,
+                                kind: result.kind,
+                                downloadFileName: result.downloadFileName,
+                                previewUrl: result.previewObjectUrl,
+                                previewKind: result.previewKind,
+                            });
                             lastOptimizedSettingsSignatureRef.current = getSettingsSignature(settings);
                             setStatus((current) => ({
                                 ...current,
                                 optimizedLabel: formatMegabytes(result.sizeBytes),
                                 optimizedCompression: result.compressionLabel,
-                                message: "Reload complete. Optimized GLB updated for the current settings.",
+                                message:
+                                    asset.kind === "texture"
+                                        ? settings.textureExportMode === "image"
+                                            ? "Reload complete. Optimized texture image and plane preview updated for the current settings."
+                                            : "Reload complete. Optimized texture preview GLB updated for the current settings."
+                                        : "Reload complete. Optimized GLB updated for the current settings.",
                             }));
                         } catch (error) {
                             setStatus((current) => ({
@@ -394,7 +439,7 @@ export function App() {
                             ...current,
                             sourceName: info.sourceLabel,
                             message: info.message,
-                            optimizedLabel: optimizedObjectUrl ? current.optimizedLabel : "Converted Size",
+                            optimizedLabel: optimizedAsset ? current.optimizedLabel : "Converted Size",
                         }));
                         updateSourceStatusFromLoadedAsset();
                     }}
@@ -484,7 +529,11 @@ export function App() {
                         controller={animationController}
                     />
                     <button className="footerButton footerAccent" type="button" onClick={triggerOptimization} disabled={isOptimizing}>
-                        {isOptimizing ? "Optimizing..." : "Optimize GLB"}
+                        {isOptimizing
+                            ? "Optimizing..."
+                            : viewerRef.current?.getLoadedAssetInfo()?.kind === "texture"
+                              ? "Convert Texture"
+                              : "Optimize GLB"}
                     </button>
                     <button className="footerButton" type="button" onClick={downloadOptimizedAsset}>
                         Download

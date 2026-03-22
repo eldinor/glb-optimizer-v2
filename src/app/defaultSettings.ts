@@ -3,6 +3,7 @@ import type { OptimizerSettings } from "./model";
 export const DEFAULT_SETTINGS: OptimizerSettings = {
     resize: "No Resize",
     textureMode: "webp",
+    textureExportMode: "image",
     draco: false,
     dedup: true,
     prune: true,

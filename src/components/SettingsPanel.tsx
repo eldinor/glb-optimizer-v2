@@ -116,6 +116,16 @@ export function SettingsPanel(props: SettingsPanelProps) {
                     ]}
                     onChange={(value) => update({ textureMode: value })}
                 />
+
+                <SelectRow
+                    label="Texture Export"
+                    value={props.settings.textureExportMode}
+                    options={[
+                        { value: "image", label: "Image" },
+                        { value: "glb-plane", label: "GLB Plane" },
+                    ]}
+                    onChange={(value) => update({ textureExportMode: value })}
+                />
             </Section>
 
             <Section title="Basic">

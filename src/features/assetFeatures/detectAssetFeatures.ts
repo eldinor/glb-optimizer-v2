@@ -121,6 +121,19 @@ export async function detectAssetFeaturesFromLoadedAsset(asset: LoadedAssetInfo)
     const extension = getFileExtension(asset.primaryFileName);
     const sourceFile = asset.files.find((file) => getFileName(file) === asset.primaryFileName) ?? asset.files[0];
 
+    if (asset.kind === "texture") {
+        const headerLabel = extension.replace(".", "").toUpperCase() || "Texture";
+        return {
+            compressionLabel: headerLabel,
+            headerLabel,
+            hasDraco: false,
+            hasMeshopt: false,
+            hasGpuInstancing: false,
+            extensionsUsed: [],
+            extensionsRequired: [],
+        };
+    }
+
     if (extension === ".gltf") {
         return detectAssetFeaturesInJson(JSON.parse(await sourceFile.text()));
     }

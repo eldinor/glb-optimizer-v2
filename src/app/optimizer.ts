@@ -3,6 +3,7 @@ import { detectAssetFeaturesFromGlbBytes } from "../features/assetFeatures/detec
 import { encodeKtxTextures } from "../features/ktx/encodeKtxTextures";
 import type { KtxEncodingOptions } from "../features/ktx/types";
 import type { GltfOptimizerOptions } from "../features/optimizer/types";
+import { createTexturePlaneDocument } from "../features/texture/texturePlaneAsset";
 import { loadDracoDecoderModule, loadDracoEncoderModule } from "../features/draco/loadDracoDecoderModule";
 import { ALL_EXTENSIONS, KHRDracoMeshCompression } from "@gltf-transform/extensions";
 import { ImageUtils, Logger, WebIO, type JSONDocument } from "@gltf-transform/core";
@@ -133,6 +134,34 @@ function getReusableOptimizerOptions(settings: OptimizerSettings): GltfOptimizer
     };
 }
 
+function getTextureOutputExtension(mimeType: string | null | undefined): string {
+    if (mimeType === "image/webp") {
+        return ".webp";
+    }
+
+    if (mimeType === "image/png") {
+        return ".png";
+    }
+
+    if (mimeType === "image/jpeg") {
+        return ".jpg";
+    }
+
+    if (mimeType === "image/ktx2") {
+        return ".ktx2";
+    }
+
+    return ".bin";
+}
+
+function getTextureCompressionLabel(mimeType: string | null | undefined): string {
+    if (!mimeType) {
+        return "Texture";
+    }
+
+    return getTextureOutputExtension(mimeType).replace(".", "").toUpperCase();
+}
+
 function getKtxEncodingOptions(settings: OptimizerSettings): KtxEncodingOptions {
     return {
         textureMode: settings.textureMode as KtxEncodingOptions["textureMode"],
@@ -240,7 +269,7 @@ async function readSourceDocument(asset: LoadedAssetInfo, io: WebIO) {
 
 export async function optimizeLoadedAsset(asset: LoadedAssetInfo, settings: OptimizerSettings): Promise<OptimizationResult> {
     const io = await createWebIo(settings.draco);
-    const { document } = await readSourceDocument(asset, io);
+    const { document } = asset.kind === "texture" ? { document: await createTexturePlaneDocument(asset.files[0]) } : await readSourceDocument(asset, io);
     const useKtx = isKtxMode(settings);
     document.setLogger(new Logger(Logger.Verbosity.INFO));
     document.getRoot().getAsset().generator = "GLB Optimizer (https://glb.babylonpress.org)";
@@ -268,10 +297,34 @@ export async function optimizeLoadedAsset(asset: LoadedAssetInfo, settings: Opti
         await encodeKtxTextures(document, getKtxEncodingOptions(settings));
         const optimizedGlb = await io.writeBinary(document);
         const objectUrl = URL.createObjectURL(new Blob([optimizedGlb], { type: "model/gltf-binary" }));
+
+        if (asset.kind === "texture" && settings.textureExportMode === "image") {
+            const optimizedTexture = document.getRoot().listTextures()[0];
+            const image = optimizedTexture?.getImage();
+            const mimeType = optimizedTexture?.getMimeType();
+            if (!image || !mimeType) {
+                throw new Error("Failed to extract the optimized texture image from the generated plane asset.");
+            }
+
+            return {
+                kind: "texture",
+                objectUrl: URL.createObjectURL(new Blob([image], { type: mimeType })),
+                sizeBytes: image.byteLength ?? image.length,
+                compressionLabel: getTextureCompressionLabel(mimeType),
+                downloadFileName: `${asset.primaryFileName.replace(/\.[^/.]+$/, "")}-opt${getTextureOutputExtension(mimeType)}`,
+                previewObjectUrl: objectUrl,
+                previewKind: "scene",
+            };
+        }
+
         return {
+            kind: "scene",
             objectUrl,
             sizeBytes: optimizedGlb.byteLength || optimizedGlb.length,
             compressionLabel: (await detectAssetFeaturesFromGlbBytes(optimizedGlb)).compressionLabel,
+            downloadFileName: `${asset.primaryFileName.replace(/\.[^/.]+$/, "")}-opt.glb`,
+            previewObjectUrl: objectUrl,
+            previewKind: "scene",
         };
     }
 
@@ -290,9 +343,32 @@ export async function optimizeLoadedAsset(asset: LoadedAssetInfo, settings: Opti
     const optimizedGlb = await io.writeBinary(document);
     const objectUrl = URL.createObjectURL(new Blob([optimizedGlb], { type: "model/gltf-binary" }));
 
+    if (asset.kind === "texture" && settings.textureExportMode === "image") {
+        const optimizedTexture = document.getRoot().listTextures()[0];
+        const image = optimizedTexture?.getImage();
+        const mimeType = optimizedTexture?.getMimeType();
+        if (!image || !mimeType) {
+            throw new Error("Failed to extract the optimized texture image from the generated plane asset.");
+        }
+
+        return {
+            kind: "texture",
+            objectUrl: URL.createObjectURL(new Blob([image], { type: mimeType })),
+            sizeBytes: image.byteLength ?? image.length,
+            compressionLabel: getTextureCompressionLabel(mimeType),
+            downloadFileName: `${asset.primaryFileName.replace(/\.[^/.]+$/, "")}-opt${getTextureOutputExtension(mimeType)}`,
+            previewObjectUrl: objectUrl,
+            previewKind: "scene",
+        };
+    }
+
     return {
+        kind: "scene",
         objectUrl,
         sizeBytes: optimizedGlb.byteLength || optimizedGlb.length || totalVramBytes,
         compressionLabel: (await detectAssetFeaturesFromGlbBytes(optimizedGlb)).compressionLabel,
+        downloadFileName: `${asset.primaryFileName.replace(/\.[^/.]+$/, "")}-opt.glb`,
+        previewObjectUrl: objectUrl,
+        previewKind: "scene",
     };
 }

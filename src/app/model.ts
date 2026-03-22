@@ -1,8 +1,11 @@
 export type TextureOutputMode = "keep" | "webp" | "png" | "ktx2-uastc" | "ktx2-etc1s" | "ktx2-mix" | "ktx2-user";
+export type LoadedAssetKind = "scene" | "texture";
+export type TextureExportMode = "image" | "glb-plane";
 
 export interface OptimizerSettings {
     resize: "No Resize" | "2048" | "1024" | "512" | "256";
     textureMode: TextureOutputMode;
+    textureExportMode: TextureExportMode;
     draco: boolean;
     dedup: boolean;
     prune: boolean;
@@ -44,14 +47,19 @@ export interface AppStatus {
 }
 
 export interface LoadedAssetInfo {
+    kind: LoadedAssetKind;
     primaryFileName: string;
     files: File[];
 }
 
 export interface OptimizationResult {
+    kind: LoadedAssetKind;
     objectUrl: string;
     sizeBytes: number;
     compressionLabel: string;
+    downloadFileName: string;
+    previewObjectUrl: string;
+    previewKind: LoadedAssetKind;
 }
 
 export interface ScreenshotCompareState {

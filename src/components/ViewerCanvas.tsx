@@ -21,12 +21,13 @@ import {
 import "@babylonjs/loaders/glTF";
 import "./ViewerCanvas.css";
 import type { EnvironmentPreset } from "../app/environmentPresets";
-import type { LoadedAssetInfo } from "../app/model";
+import type { LoadedAssetInfo, LoadedAssetKind } from "../app/model";
 import type { AnimationControlsState } from "./AnimationControls.types";
 import { detectAssetFeaturesFromGlbBytes } from "../features/assetFeatures/detectAssetFeatures";
 import { getBabylonDracoDecoderUrls } from "../features/draco/loadDracoDecoderModule";
 import { captureActiveSceneComparison } from "../features/screenshotCompare/captureSceneComparison";
 import type { ScreenshotCompareResult } from "../features/screenshotCompare/types";
+import { createTexturePlaneGlb, isStandaloneTextureFile } from "../features/texture/texturePlaneAsset";
 
 const OPTIMIZED_LAYER_MASK = 0x20000000;
 const SOURCE_LAYER_MASK = 0x0fffffff;
@@ -39,6 +40,14 @@ function getDisplayName(file: File): string {
 function getSceneFile(files: File[]): File | undefined {
     const preferredExtensions = [".gltf", ".glb"];
     return files.find((file) => preferredExtensions.some((extension) => getDisplayName(file).toLowerCase().endsWith(extension)));
+}
+
+function getStandaloneTextureFile(files: File[]): File | undefined {
+    if (files.length !== 1) {
+        return undefined;
+    }
+
+    return isStandaloneTextureFile(files[0]) ? files[0] : undefined;
 }
 
 function normalizeResourceUri(uri: string): string {
@@ -101,7 +110,7 @@ interface ViewerCanvasProps {
     environment: EnvironmentPreset;
     skyboxEnabled: boolean;
     wireframeEnabled: boolean;
-    optimizedAssetUrl: string | null;
+    optimizedAsset: { url: string; kind: LoadedAssetKind } | null;
     sourceSceneVersion: number;
     onSceneInfoChange: (info: ViewerSceneInfo) => void;
     onAnimationStateChange?: (state: AnimationControlsState) => void;
@@ -143,7 +152,6 @@ export const ViewerCanvas = forwardRef<ViewerCanvasHandle, ViewerCanvasProps>(fu
             environment: props.environment,
             skyboxEnabled: props.skyboxEnabled,
             wireframeEnabled: props.wireframeEnabled,
-            optimizedAssetUrl: props.optimizedAssetUrl,
             loadReason: reason,
             onSceneInfoChange: props.onSceneInfoChange,
             onAnimationStateChange: props.onAnimationStateChange,
@@ -253,7 +261,7 @@ export const ViewerCanvas = forwardRef<ViewerCanvasHandle, ViewerCanvasProps>(fu
         return () => {
             window.removeEventListener("keydown", handleKeyDown);
         };
-    }, [props.environment, props.onSceneInfoChange, props.onSourceAssetLoaded, props.optimizedAssetUrl, props.skyboxEnabled, props.wireframeEnabled]);
+    }, [props.environment, props.onSceneInfoChange, props.onSourceAssetLoaded, props.optimizedAsset, props.skyboxEnabled, props.wireframeEnabled]);
 
     useEffect(() => {
         const scene = sceneRef.current;
@@ -279,8 +287,8 @@ export const ViewerCanvas = forwardRef<ViewerCanvasHandle, ViewerCanvasProps>(fu
             return;
         }
 
-        void syncOptimizedAsset(scene, props.optimizedAssetUrl, optimizedMeshesRef, props.onSceneInfoChange);
-    }, [props.optimizedAssetUrl, props.sourceSceneVersion, props.onSceneInfoChange]);
+        void syncOptimizedAsset(scene, props.optimizedAsset, optimizedMeshesRef, props.onSceneInfoChange);
+    }, [props.optimizedAsset, props.sourceSceneVersion, props.onSceneInfoChange]);
 
     useImperativeHandle(
         ref,
@@ -356,7 +364,7 @@ export const ViewerCanvas = forwardRef<ViewerCanvasHandle, ViewerCanvasProps>(fu
                 return nextState;
             },
         }),
-        [props.environment, props.onAnimationStateChange, props.onSceneInfoChange, props.onSourceAssetLoaded, props.optimizedAssetUrl, props.skyboxEnabled, props.wireframeEnabled]
+        [props.environment, props.onAnimationStateChange, props.onSceneInfoChange, props.onSourceAssetLoaded, props.optimizedAsset, props.skyboxEnabled, props.wireframeEnabled]
     );
 
     const handleDrop = async (event: DragEvent<HTMLDivElement>) => {
@@ -394,7 +402,7 @@ export const ViewerCanvas = forwardRef<ViewerCanvasHandle, ViewerCanvasProps>(fu
                 <span>Optimized</span>
             </div>
             <div className="viewerOverlay">
-                <span>Drop `.glb` or `.gltf` files here</span>
+                <span>Drop `.glb`, `.gltf`, or a texture here</span>
             </div>
         </div>
     );
@@ -489,7 +497,7 @@ function applyEnvironment(
 
 async function syncOptimizedAsset(
     scene: Scene,
-    optimizedAssetUrl: string | null,
+    optimizedAsset: { url: string; kind: LoadedAssetKind } | null,
     optimizedMeshesRef: MutableRefObject<AbstractMesh[]>,
     onSceneInfoChange: (info: ViewerSceneInfo) => void
 ) {
@@ -498,11 +506,12 @@ async function syncOptimizedAsset(
     }
     optimizedMeshesRef.current = [];
 
-    if (!optimizedAssetUrl) {
+    if (!optimizedAsset) {
         return;
     }
 
     try {
+        const optimizedAssetUrl = optimizedAsset.url;
         const optimizedBytes = new Uint8Array(await (await fetch(optimizedAssetUrl)).arrayBuffer());
         const features = await detectAssetFeaturesFromGlbBytes(optimizedBytes);
         if (features.hasDraco) {
@@ -519,6 +528,24 @@ async function syncOptimizedAsset(
             sourceLabel: "Optimized Preview Error",
             message: error instanceof Error ? `Optimized preview failed: ${error.message}` : "Optimized preview failed.",
         });
+    }
+}
+
+async function createStandaloneTextureScene(
+    engine: Engine,
+    canvas: HTMLCanvasElement,
+    textureFile: File,
+    secondaryCameraRef: MutableRefObject<ArcRotateCamera | null>
+): Promise<Scene> {
+    const glbBytes = await createTexturePlaneGlb(textureFile);
+    const objectUrl = URL.createObjectURL(new Blob([glbBytes], { type: "model/gltf-binary" }));
+    try {
+        const scene = await SceneLoader.LoadAsync("", objectUrl, engine, undefined, ".glb");
+        prepareScene(scene, canvas, textureFile.name, secondaryCameraRef);
+        applySourceLayerMask(scene);
+        return scene;
+    } finally {
+        URL.revokeObjectURL(objectUrl);
     }
 }
 
@@ -695,7 +722,6 @@ async function loadFilesIntoViewer(
         environment: EnvironmentPreset;
         skyboxEnabled: boolean;
         wireframeEnabled: boolean;
-        optimizedAssetUrl: string | null;
         loadReason: "load" | "reload";
         onSceneInfoChange: (info: ViewerSceneInfo) => void;
         onAnimationStateChange?: (state: AnimationControlsState) => void;
@@ -727,9 +753,10 @@ async function loadFilesIntoViewer(
     });
 
     const sceneFile = getSceneFile(namedFiles);
+    const textureFile = getStandaloneTextureFile(namedFiles);
     const firstFile = incomingFiles[0] ?? namedFiles[0];
     context.onSceneInfoChange({
-        sourceLabel: sceneFile ? getDisplayName(sceneFile) : getDisplayName(firstFile),
+        sourceLabel: sceneFile ? getDisplayName(sceneFile) : getDisplayName(textureFile ?? firstFile),
         message: `Loading ${namedFiles.length} file${namedFiles.length === 1 ? "" : "s"}...`,
     });
 
@@ -742,20 +769,25 @@ async function loadFilesIntoViewer(
         }
         detachAnimationObserver(previousScene, context.animationObserverRef);
 
-        if (!sceneFile) {
+        if (!sceneFile && !textureFile) {
             context.pendingFilesRef.current = namedFiles;
-            throw new Error("No supported scene file found. Upload a `.glb` or a `.gltf`, or add the missing scene file to the current selection.");
+            throw new Error("No supported source file found. Upload a `.glb`, a `.gltf`, or a standalone PNG/JPG/WEBP texture.");
         }
 
-        const missingResources = await getMissingGltfResources(sceneFile, namedFiles);
-        if (missingResources.length > 0) {
-            context.pendingFilesRef.current = namedFiles;
-            throw new Error(`Missing sidecar files for ${getDisplayName(sceneFile)}: ${missingResources.join(", ")}. Add those files and try again.`);
+        if (sceneFile) {
+            const missingResources = await getMissingGltfResources(sceneFile, namedFiles);
+            if (missingResources.length > 0) {
+                context.pendingFilesRef.current = namedFiles;
+                throw new Error(`Missing sidecar files for ${getDisplayName(sceneFile)}: ${missingResources.join(", ")}. Add those files and try again.`);
+            }
         }
 
-        const nextScene = await loadSceneWithFilesInput(engine, namedFiles, context.dataTransferItems, sceneFile);
+        const nextScene = sceneFile
+            ? await loadSceneWithFilesInput(engine, namedFiles, context.dataTransferItems, sceneFile)
+            : await createStandaloneTextureScene(engine, canvas, textureFile as File, context.secondaryCameraRef);
         const loadedAsset: LoadedAssetInfo = {
-            primaryFileName: getDisplayName(sceneFile),
+            kind: sceneFile ? "scene" : "texture",
+            primaryFileName: getDisplayName(sceneFile ?? (textureFile as File)),
             files: namedFiles,
         };
         context.loadedAssetRef.current = loadedAsset;
@@ -766,8 +798,10 @@ async function loadFilesIntoViewer(
         }
 
         context.sceneRef.current = nextScene;
-        prepareScene(nextScene, canvas, getDisplayName(sceneFile), context.secondaryCameraRef);
-        applySourceLayerMask(nextScene);
+        if (sceneFile) {
+            prepareScene(nextScene, canvas, getDisplayName(sceneFile), context.secondaryCameraRef);
+            applySourceLayerMask(nextScene);
+        }
         context.environmentPathRef.current = null;
         applyEnvironment(nextScene, context.environment, context.skyboxEnabled, context.sourceSkyboxRef, context.optimizedSkyboxRef, context.environmentPathRef);
         applyWireframe(nextScene, context.wireframeEnabled);
@@ -775,8 +809,10 @@ async function loadFilesIntoViewer(
         attachAnimationObserver(nextScene, context.animationObserverRef, context.animationStateRef, context.onAnimationStateChange);
 
         context.onSceneInfoChange({
-            sourceLabel: getDisplayName(sceneFile),
-            message: "Scene loaded. Single-canvas compare mode is active with split viewports.",
+            sourceLabel: getDisplayName(sceneFile ?? (textureFile as File)),
+            message: sceneFile
+                ? "Scene loaded. Single-canvas compare mode is active with split viewports."
+                : "Texture loaded onto a preview plane. Optimization will reuse the same GLB pipeline as any other imported scene.",
         });
     } catch (error) {
         const message = error instanceof Error ? error.message : "Unknown loading error";
