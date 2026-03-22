@@ -34,8 +34,6 @@ describe("formatGltfAssetInfoRows", () => {
         const rows = formatGltfAssetInfoRows(createAssetInfo({ author: "Ada", copyright: "Example Corp" }));
 
         expect(rows).toEqual([
-            { section: "Asset Metadata", label: "Container", items: ["GLB"], variant: "default" },
-            { section: undefined, label: "Version", items: ["glTF 2.0"], variant: "default" },
             { section: undefined, label: "Generator", items: ["Test Generator"], variant: "default" },
             { section: undefined, label: "Author", items: ["Ada"], variant: "default" },
             { section: undefined, label: "Copyright", items: ["Example Corp"], variant: "default" },

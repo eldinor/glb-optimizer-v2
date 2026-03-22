@@ -49,13 +49,7 @@ export async function prepareGltfOptimization(document: Document, options: GltfO
     }
 
     if (options.weld.enabled) {
-        transforms.push(
-            weld({
-                exhaustive: false,
-                tolerance: options.weld.tolerance,
-                toleranceNormal: options.weld.toleranceNormal,
-            })
-        );
+        transforms.push(weld());
     }
 
     if (options.simplify.enabled) {

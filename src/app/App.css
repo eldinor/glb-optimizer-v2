@@ -25,16 +25,89 @@
 .topBarRow {
     display: flex;
     min-height: 42px;
-    background: rgba(255, 255, 255, 0.92);
-    border-bottom: 1px solid rgba(15, 23, 42, 0.08);
-    backdrop-filter: blur(12px);
+    background: rgb(32, 25, 54);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.topBarActions {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    margin-left: auto;
+    pointer-events: auto;
+}
+
+.topBarSelect {
+    display: flex;
+    align-items: stretch;
+    height: 100%;
+    background: rgb(32, 25, 54);
+    border-left: 1px solid rgba(255, 255, 255, 0.08);
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+    color: #fff;
+}
+
+.topBarSelectIcon {
+    align-self: center;
+    flex: 0 0 auto;
+    margin-left: 10px;
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 20px;
+}
+
+.topBarSelectInput {
+    min-width: 148px;
+    height: 100%;
+    padding: 0 32px 0 8px;
+    background: rgb(32, 25, 54);
+    color: #fff;
+    border: 0;
+    box-shadow: none;
+    appearance: none;
+    font: inherit;
+    cursor: pointer;
+}
+
+.topBarSelectInput:hover,
+.topBarSelectInput:focus,
+.topBarSelectInput:focus-visible {
+    background: rgb(41, 6, 156);
+    color: #fff;
+    outline: none;
+}
+
+.topBarSelectInput option {
+    color: #fff;
+    background: rgb(32, 25, 54);
+}
+
+.topBarIconButton {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #fff;
+    cursor: pointer;
+    font: inherit;
+}
+
+.topBarIconButton:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.topBarIcon {
+    font-size: 24px;
 }
 
 .topColumn {
     flex: 1 1 50%;
     min-width: 0;
     padding: 8px 14px;
-    color: #1f2937;
+    color: #fff;
 }
 
 .topColumn strong {
@@ -47,7 +120,7 @@
 .topMetricLabel {
     display: block;
     margin-bottom: 6px;
-    color: #64748b;
+    color: rgba(255, 255, 255, 0.72);
     font-size: 0.74rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -58,7 +131,7 @@
     top: 52px;
     left: 0;
     right: 0;
-    z-index: 9;
+    z-index: 8;
     display: grid;
     justify-items: center;
     gap: 10px;
@@ -69,12 +142,11 @@
 .topInfoSecondary {
     width: min(50vw, 780px);
     padding: 6px 12px;
-    color: #0f172a;
+    color: #fff;
     text-align: center;
-    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
-    border: 1px solid rgba(15, 23, 42, 0.08);
-    background: rgba(255, 255, 255, 0.92);
-    backdrop-filter: blur(12px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(59, 9, 224, 0.95);
 }
 
 .topInfo {
@@ -82,7 +154,7 @@
 }
 
 .topInfoSecondary {
-    color: #475569;
+    background: rgba(41, 6, 156, 0.95);
 }
 
 .viewerFrame {
@@ -111,9 +183,8 @@
     gap: 14px;
     min-height: 70px;
     padding: 0 12px 0 12px;
-    background: rgba(255, 255, 255, 0.94);
-    border-top: 1px solid rgba(15, 23, 42, 0.08);
-    backdrop-filter: blur(14px);
+    background: rgb(32, 25, 54);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
     overflow-x: auto;
     transition:
         transform 180ms ease,
@@ -140,11 +211,11 @@
 
 .brandTitle {
     font-weight: 700;
-    color: #0f172a;
+    color: #fff;
 }
 
 .brandMeta {
-    color: #64748b;
+    color: rgba(255, 255, 255, 0.78);
     font-size: 0.84rem;
 }
 
@@ -158,7 +229,7 @@
     min-width: max-content;
     border: 0;
     background: transparent;
-    color: #1f2937;
+    color: #fff;
     cursor: pointer;
     font: inherit;
 }
@@ -193,11 +264,11 @@
 }
 
 .footerButton:hover {
-    background: rgba(15, 23, 42, 0.04);
+    background: rgba(255, 255, 255, 0.08);
 }
 
 .footerAccent {
-    color: #0f6cbd;
+    color: #fff;
 }
 
 .footerSelect {
@@ -208,7 +279,7 @@
 }
 
 .footerSelect span {
-    color: #475569;
+    color: #fff;
     font-size: 0.82rem;
 }
 
@@ -218,6 +289,14 @@
 
 .footerSelect .fui-Select {
     min-width: 140px;
+    background: rgba(255, 255, 255, 0.06);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.18);
+}
+
+.footerSelect .fui-Select option {
+    color: #fff;
+    background: rgb(32, 25, 54);
 }
 
 .hiddenInput {
@@ -227,7 +306,7 @@
 .overlayContainer {
     position: absolute;
     inset: 48px 0 88px;
-    z-index: 8;
+    z-index: 11;
     display: grid;
     place-items: start center;
     pointer-events: none;
@@ -237,9 +316,9 @@
 .helpOverlay {
     max-height: calc(100vh - 160px);
     overflow: auto;
-    border: 1px solid rgba(15, 23, 42, 0.08);
-    background: rgba(255, 255, 255, 0.97);
-    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgb(32, 25, 54);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.3);
     pointer-events: auto;
 }
 
@@ -259,30 +338,33 @@
     justify-content: space-between;
     gap: 12px;
     padding: 14px 16px;
-    background: rgba(248, 250, 252, 0.98);
-    border-bottom: 1px solid rgba(15, 23, 42, 0.06);
-    backdrop-filter: blur(12px);
+    background: rgba(41, 6, 156, 0.98);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .overlayHeader h2 {
     margin: 0;
     font-size: 1rem;
-    color: #0f172a;
+    color: #fff;
 }
 
 .overlayClose {
     margin-left: auto;
 }
 
+.overlayClose.fui-Button {
+    color: #fff;
+}
+
 .helpContent {
     padding: 16px;
-    color: #334155;
+    color: rgba(255, 255, 255, 0.9);
     line-height: 1.5;
 }
 
 .helpContent h3 {
     margin: 18px 0 6px;
-    color: #0f172a;
+    color: #fff;
 }
 
 .compareBadge {
@@ -292,11 +374,10 @@
     z-index: 5;
     transform: translateX(-50%);
     padding: 6px 12px;
-    background: rgba(255, 255, 255, 0.94);
-    color: #0f172a;
-    border: 1px solid rgba(15, 23, 42, 0.08);
-    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.12);
-    backdrop-filter: blur(12px);
+    background: rgba(32, 25, 54, 0.96);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.2);
 }
 
 @media (max-width: 1080px) {
@@ -314,6 +395,15 @@
 @media (max-width: 768px) {
     .topBarRow {
         flex-direction: column;
+    }
+
+    .topBarActions {
+        justify-content: flex-end;
+        min-height: 42px;
+    }
+
+    .topBarSelect .fui-Select {
+        min-width: 120px;
     }
 
     .leftRail {

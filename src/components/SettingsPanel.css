@@ -1,6 +1,7 @@
 .settingsPanel {
     padding: 18px;
     background: transparent;
+    color: #fff;
 }
 
 .settingsIntro {
@@ -12,7 +13,7 @@
 .settingsSection h2 {
     margin: 0;
     font-size: 1rem;
-    color: #0f172a;
+    color: #fff;
 }
 
 .settingsSection + .settingsSection,
@@ -30,12 +31,15 @@
     display: grid;
     gap: 8px;
     font-size: 0.94rem;
-    color: #334155;
+    color: rgba(255, 255, 255, 0.9);
 }
 
 .fieldRow .fui-Input,
 .fieldRow .fui-Select {
     width: 100%;
+    background: rgba(255, 255, 255, 0.06);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.18);
 }
 
 .checkboxRow {
@@ -47,6 +51,18 @@
     width: 100%;
 }
 
+.checkboxRow .fui-Label,
+.fieldRow .fui-Label,
+.settingsIntro .fui-Text {
+    color: rgba(255, 255, 255, 0.9);
+}
+
 .settingsFooter {
     margin-top: 18px;
+}
+
+.settingsFooter .fui-Button {
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.06);
 }

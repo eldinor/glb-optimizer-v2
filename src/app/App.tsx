@@ -1,16 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AppStatus, LoadedAssetKind, ScreenshotCompareState } from "./model";
-import { Button, FluentProvider, Select, webLightTheme } from "@fluentui/react-components";
+import { Button, FluentProvider, webLightTheme } from "@fluentui/react-components";
 import {
     ArrowClockwiseRegular,
     ArrowDownloadRegular,
     ArrowResetRegular,
-    CodeRegular,
+    CubeCheckmarkRegular,
     FolderOpenRegular,
     GridRegular,
     ImageMultipleRegular,
+    PersonCircleRegular,
     QuestionCircleRegular,
     SettingsRegular,
+    WeatherSunnyHighRegular,
     WeatherSunnyRegular,
 } from "@fluentui/react-icons";
 import { DEFAULT_SETTINGS } from "./defaultSettings";
@@ -19,6 +21,7 @@ import { SettingsPanel } from "../components/SettingsPanel";
 import { ViewerCanvas, type ViewerCanvasHandle } from "../components/ViewerCanvas";
 import { AnimationControls } from "../components/AnimationControls";
 import { AssetInfoPanel } from "../components/AssetInfoPanel";
+import { ChosenSettingsPanel } from "../components/ChosenSettingsPanel";
 import type { AnimationControlsController, AnimationControlsState } from "../components/AnimationControls.types";
 import { ENVIRONMENT_PRESETS } from "./environmentPresets";
 import { optimizeLoadedAsset } from "./optimizer";
@@ -61,7 +64,7 @@ export function App() {
     const { settings, setSettings, resetSettings } = usePersistentSettings();
     const [status, setStatus] = useState<AppStatus>(INITIAL_STATUS);
     const [selectedEnvironmentId, setSelectedEnvironmentId] = useState(ENVIRONMENT_PRESETS[0].id);
-    const [skyboxEnabled, setSkyboxEnabled] = useState(true);
+    const [skyboxEnabled, setSkyboxEnabled] = useState(false);
     const [wireframeEnabled, setWireframeEnabled] = useState(false);
     const [optimizedAsset, setOptimizedAsset] = useState<{
         url: string;
@@ -77,8 +80,10 @@ export function App() {
     const [animationState, setAnimationState] = useState<AnimationControlsState>(EMPTY_ANIMATION_STATE);
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [helpOpen, setHelpOpen] = useState(false);
+    const [userSettingsOpen, setUserSettingsOpen] = useState(false);
     const [footerHidden, setFooterHidden] = useState(false);
     const [sourceAssetInfo, setSourceAssetInfo] = useState<GltfAssetInfo | null>(null);
+    const [activeAssetKind, setActiveAssetKind] = useState<LoadedAssetKind | null>(null);
     const viewerRef = useRef<ViewerCanvasHandle | null>(null);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const lastOptimizedSettingsSignatureRef = useRef<string | null>(null);
@@ -232,6 +237,7 @@ export function App() {
             const requestId = ++sourceAssetInfoRequestIdRef.current;
             setSourceSceneVersion((current) => current + 1);
             setCompareState(null);
+            setActiveAssetKind(asset.kind);
 
             if (asset.kind === "scene") {
                 void extractGltfAssetInfoFromLoadedAsset(asset).then((info) => {
@@ -495,6 +501,50 @@ export function App() {
                         <strong>{status.optimizedLabel}</strong>
                         <span className="topMetricLabel">{status.optimizedCompression}</span>
                     </div>
+                    <div className="topBarActions">
+                        <label className="topBarSelect" title="HDR environment">
+                            <WeatherSunnyHighRegular className="topBarSelectIcon" title="HDR environment" />
+                            <select
+                                className="topBarSelectInput"
+                                value={selectedEnvironmentId}
+                                aria-label="Environment"
+                                title="HDR environment"
+                                onChange={(event) => {
+                                    const nextId = event.target.value;
+                                    setSelectedEnvironmentId(nextId);
+                                    const nextPreset = ENVIRONMENT_PRESETS.find((preset) => preset.id === nextId);
+                                    setStatus((current) => ({
+                                        ...current,
+                                        message: `Environment switched to ${nextPreset?.label ?? "Default"}.`,
+                                    }));
+                                }}
+                            >
+                                {ENVIRONMENT_PRESETS.map((preset) => (
+                                    <option key={preset.id} value={preset.id}>
+                                        {preset.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                        <button
+                            className="topBarIconButton"
+                            type="button"
+                            aria-label="User Settings"
+                            title="User Settings"
+                            onClick={() => setUserSettingsOpen((current) => !current)}
+                        >
+                            <PersonCircleRegular className="topBarIcon" />
+                        </button>
+                        <button
+                            className="topBarIconButton"
+                            type="button"
+                            aria-label="Help"
+                            title="Help"
+                            onClick={() => setHelpOpen((current) => !current)}
+                        >
+                            <QuestionCircleRegular className="topBarIcon" />
+                        </button>
+                    </div>
                 </div>
             </header>
 
@@ -506,6 +556,8 @@ export function App() {
             <div className="leftRail">
                 <AssetInfoPanel info={sourceAssetInfo} />
             </div>
+
+            <ChosenSettingsPanel settings={settings} activeAssetKind={activeAssetKind} footerHidden={footerHidden} />
 
             {settingsOpen ? (
                 <div className="overlayContainer">
@@ -554,12 +606,30 @@ export function App() {
                 </div>
             ) : null}
 
+            {userSettingsOpen ? (
+                <div className="overlayContainer">
+                    <div className="panelOverlay">
+                        <div className="overlayHeader">
+                            <h2>User Settings</h2>
+                            <Button className="overlayClose" appearance="subtle" onClick={() => setUserSettingsOpen(false)}>
+                                Close
+                            </Button>
+                        </div>
+                        <div className="helpContent">
+                            <p>This is a placeholder user settings panel.</p>
+                            <p>We can add profile preferences, saved presets, theme options, or cloud-connected settings here later.</p>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
+
             <main className="viewerFrame">
                 <ViewerCanvas
                     ref={viewerRef}
                     environment={selectedEnvironment}
                     skyboxEnabled={skyboxEnabled}
                     wireframeEnabled={wireframeEnabled}
+                    footerHidden={footerHidden}
                     timeToWaitBeforeSuspend={settings.timeToWaitBeforeSuspend}
                     optimizedAsset={viewerOptimizedAsset}
                     sourceSceneVersion={sourceSceneVersion}
@@ -571,7 +641,7 @@ export function App() {
 
             <footer className={`footerBar${footerHidden ? " isHidden" : ""}`}>
                 <div className="footerCluster footerBrand">
-                    <div className="brandTitle">New Sandbox</div>
+                    <div className="brandTitle">GLB Optimizer v2 - Convert glTF and GLB files with with WEBP and KTX2 Textures online</div>
                     <div className="brandMeta">{textureModeLabel}</div>
                 </div>
 
@@ -582,27 +652,6 @@ export function App() {
                             <span className="footerButtonLabel">Open</span>
                         </span>
                     </button>
-                    <label className="footerSelect">
-                        <span>Environment</span>
-                        <Select
-                            value={selectedEnvironmentId}
-                            onChange={(event) => {
-                                const nextId = event.target.value;
-                                setSelectedEnvironmentId(nextId);
-                                const nextPreset = ENVIRONMENT_PRESETS.find((preset) => preset.id === nextId);
-                                setStatus((current) => ({
-                                    ...current,
-                                    message: `Environment switched to ${nextPreset?.label ?? "Default"}.`,
-                                }));
-                            }}
-                        >
-                            {ENVIRONMENT_PRESETS.map((preset) => (
-                                <option key={preset.id} value={preset.id}>
-                                    {preset.label}
-                                </option>
-                            ))}
-                        </Select>
-                    </label>
                     <button
                         className="footerButton"
                         type="button"
@@ -611,7 +660,7 @@ export function App() {
                         }}
                     >
                         <span className="footerButtonContent">
-                            <CodeRegular className="footerButtonIcon" />
+                            <CubeCheckmarkRegular className="footerButtonIcon" />
                             <span className="footerButtonLabel">Inspector</span>
                         </span>
                     </button>
@@ -688,12 +737,6 @@ export function App() {
                         <span className="footerButtonContent">
                             <SettingsRegular className="footerButtonIcon" />
                             <span className="footerButtonLabel">Settings</span>
-                        </span>
-                    </button>
-                    <button className="footerButton" type="button" onClick={() => setHelpOpen((current) => !current)}>
-                        <span className="footerButtonContent">
-                            <QuestionCircleRegular className="footerButtonIcon" />
-                            <span className="footerButtonLabel">Help</span>
                         </span>
                     </button>
                     <button

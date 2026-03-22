@@ -128,6 +128,11 @@ export interface ViewerDisposable {
     dispose: () => void;
 }
 
+interface InspectorTokenLike {
+    isDisposed: boolean;
+    dispose: () => void;
+}
+
 export interface ViewerCanvasHandle {
     loadFiles: (files: FileList | File[]) => Promise<void>;
     toggleInspector: () => Promise<void>;
@@ -144,6 +149,7 @@ interface ViewerCanvasProps {
     environment: EnvironmentPreset;
     skyboxEnabled: boolean;
     wireframeEnabled: boolean;
+    footerHidden: boolean;
     timeToWaitBeforeSuspend: number;
     optimizedAsset: { url: string; kind: LoadedAssetKind } | null;
     sourceSceneVersion: number;
@@ -154,6 +160,7 @@ interface ViewerCanvasProps {
 
 export const ViewerCanvas = forwardRef<ViewerCanvasHandle, ViewerCanvasProps>(function ViewerCanvas(props, ref) {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
+    const inspectorHostRef = useRef<HTMLDivElement | null>(null);
     const engineRef = useRef<Engine | null>(null);
     const sceneRef = useRef<Scene | null>(null);
     const loadedAssetRef = useRef<LoadedAssetInfo | null>(null);
@@ -164,6 +171,7 @@ export const ViewerCanvas = forwardRef<ViewerCanvasHandle, ViewerCanvasProps>(fu
     const environmentPathRef = useRef<string | null>(null);
     const secondaryCameraRef = useRef<ArcRotateCamera | null>(null);
     const compareOverlayRef = useRef<Layer | null>(null);
+    const inspectorTokenRef = useRef<InspectorTokenLike | null>(null);
     const animationObserverRef = useRef<ReturnType<Scene["onBeforeRenderObservable"]["add"]> | null>(null);
     const animationStateRef = useRef<AnimationControlsState>(createEmptyAnimationState());
     const renderLoopRef = useRef<(() => void) | null>(null);
@@ -173,6 +181,7 @@ export const ViewerCanvas = forwardRef<ViewerCanvasHandle, ViewerCanvasProps>(fu
     const renderedReadyFrameRef = useRef(false);
     const lastRenderActivityAtRef = useRef(Date.now());
     const [isDragActive, setIsDragActive] = useState(false);
+    const [isInspectorVisible, setIsInspectorVisible] = useState(false);
 
     const cameraHasMotion = (scene: Scene) =>
         scene.activeCameras?.some((camera) => {
@@ -191,7 +200,7 @@ export const ViewerCanvas = forwardRef<ViewerCanvasHandle, ViewerCanvasProps>(fu
 
     const shouldRenderScene = (scene: Scene) =>
         sceneMutatedRef.current ||
-        scene.debugLayer?.isVisible() === true ||
+        isInspectorVisible ||
         cameraHasMotion(scene) ||
         scene.animationGroups.some((group) => group.isPlaying) ||
         Boolean(compareOverlayRef.current);
@@ -331,6 +340,9 @@ export const ViewerCanvas = forwardRef<ViewerCanvasHandle, ViewerCanvasProps>(fu
         canvas.addEventListener("touchmove", handleCanvasInteraction, { passive: true });
 
         return () => {
+            inspectorTokenRef.current?.dispose();
+            inspectorTokenRef.current = null;
+            setIsInspectorVisible(false);
             stopRendering();
             resizeObserver.disconnect();
             window.removeEventListener("resize", handleResize);
@@ -447,16 +459,24 @@ export const ViewerCanvas = forwardRef<ViewerCanvasHandle, ViewerCanvasProps>(fu
                     return;
                 }
 
-                await import("@babylonjs/inspector");
-                if (scene.debugLayer.isVisible()) {
-                    scene.debugLayer.hide();
+                const inspectorModule = await import("@babylonjs/inspector");
+                if (inspectorTokenRef.current && !inspectorTokenRef.current.isDisposed) {
+                    inspectorTokenRef.current.dispose();
+                    inspectorTokenRef.current = null;
+                    setIsInspectorVisible(false);
                     markSceneMutated();
                     props.onSceneInfoChange({
                         sourceLabel: "Inspector",
                         message: "Inspector hidden.",
                     });
                 } else {
-                    await scene.debugLayer.show({ embedMode: true });
+                    inspectorTokenRef.current = inspectorModule.ShowInspector(scene, {
+                        containerElement: inspectorHostRef.current ?? undefined,
+                        layoutMode: "overlay",
+                        themeMode: "dark",
+                        showThemeSelector: false,
+                    });
+                    setIsInspectorVisible(true);
                     markSceneMutated();
                     props.onSceneInfoChange({
                         sourceLabel: "Inspector",
@@ -562,6 +582,10 @@ export const ViewerCanvas = forwardRef<ViewerCanvasHandle, ViewerCanvasProps>(fu
             onDrop={handleDrop}
         >
             <canvas ref={canvasRef} className="viewerCanvas" />
+            <div
+                ref={inspectorHostRef}
+                className={`viewerInspectorHost${isInspectorVisible ? " isVisible" : ""}${props.footerHidden ? " isExpanded" : ""}`}
+            />
             <div className="viewerSplitLabels">
                 <span>Source</span>
                 <span>Optimized</span>
@@ -575,7 +599,7 @@ export const ViewerCanvas = forwardRef<ViewerCanvasHandle, ViewerCanvasProps>(fu
 
 function createPreviewScene(engine: Engine, canvas: HTMLCanvasElement): Scene {
     const scene = new Scene(engine);
-    scene.clearColor = new Color4(0.04, 0.06, 0.1, 1);
+    scene.clearColor = new Color4(0.06, 0.11, 0.2, 1);
 
     const camera = new ArcRotateCamera("camera", -Math.PI / 2, 1.15, 7, Vector3.Zero(), scene);
     camera.attachControl(canvas, true);
@@ -1030,7 +1054,7 @@ async function loadSceneWithFilesInput(engine: Engine, files: File[], _dataTrans
 }
 
 function prepareScene(scene: Scene, canvas: HTMLCanvasElement, sourceName: string, secondaryCameraRef: MutableRefObject<ArcRotateCamera | null>) {
-    scene.clearColor = new Color4(0.04, 0.06, 0.1, 1);
+    scene.clearColor = new Color4(0.06, 0.11, 0.2, 1);
 
     if (!scene.activeCamera) {
         scene.createDefaultCamera(true);

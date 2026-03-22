@@ -152,14 +152,6 @@ export function SettingsPanel(props: SettingsPanelProps) {
                         <ToggleRow label="Sparse" checked={props.settings.sparse} onChange={(value) => update({ sparse: value })} />
                         <NumberRow label="Sparse Ratio" value={props.settings.sparseRatio} step={0.01} min={0} max={1} onChange={(value) => update({ sparseRatio: value })} />
                         <ToggleRow label="Weld" checked={props.settings.weld} onChange={(value) => update({ weld: value })} />
-                        <NumberRow label="Weld Tolerance" value={props.settings.weldTolerance} step={0.001} min={0} onChange={(value) => update({ weldTolerance: value })} />
-                        <NumberRow
-                            label="Weld Normal Tolerance"
-                            value={props.settings.weldToleranceNormal}
-                            step={0.01}
-                            min={0}
-                            onChange={(value) => update({ weldToleranceNormal: value })}
-                        />
                     </Section>
 
                     <Section title="Meshoptimizer">
