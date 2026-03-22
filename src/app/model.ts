@@ -3,6 +3,7 @@ export type LoadedAssetKind = "scene" | "texture";
 export type TextureExportMode = "image" | "glb-plane";
 
 export interface OptimizerSettings {
+    timeToWaitBeforeSuspend: number;
     resize: "No Resize" | "2048" | "1024" | "512" | "256";
     textureMode: TextureOutputMode;
     textureExportMode: TextureExportMode;

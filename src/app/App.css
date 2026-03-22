@@ -88,10 +88,10 @@
     bottom: 0;
     z-index: 10;
     display: flex;
-    align-items: center;
+    align-items: stretch;
     gap: 14px;
     min-height: 70px;
-    padding: 8px 12px;
+    padding: 0 12px 0 12px;
     background: rgba(255, 255, 255, 0.94);
     border-top: 1px solid rgba(15, 23, 42, 0.08);
     backdrop-filter: blur(14px);
@@ -109,7 +109,7 @@
 
 .footerCluster {
     display: flex;
-    align-items: center;
+    align-items: stretch;
     gap: 8px;
     flex-wrap: nowrap;
 }
@@ -131,42 +131,61 @@
 
 .footerButton,
 .footerSelect {
-    height: 44px;
+    height: 100%;
     flex: 0 0 auto;
 }
 
 .footerButton {
     min-width: max-content;
-}
-
-.footerButton.fui-Button {
-    height: 44px;
-    border-radius: 8px;
+    border: 0;
+    background: transparent;
+    color: #1f2937;
+    cursor: pointer;
+    font: inherit;
 }
 
 .footerButton:disabled {
     opacity: 0.7;
+    cursor: default;
+}
+
+.footerButtonContent {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-width: 56px;
+    line-height: 1;
+}
+
+.footerButtonIcon {
+    font-size: 24px;
+}
+
+.footerButtonLabel {
+    font-size: 0.66rem;
+    font-weight: 500;
+    white-space: nowrap;
 }
 
 .footerPrimary {
     font-weight: 600;
 }
 
-.footerAccent.fui-Button {
-    background: #0f6cbd;
-    border-color: #0f6cbd;
+.footerButton:hover {
+    background: rgba(15, 23, 42, 0.04);
 }
 
-.footerAccent.fui-Button:hover {
-    background: #115ea3;
-    border-color: #115ea3;
+.footerAccent {
+    color: #0f6cbd;
 }
 
 .footerSelect {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 0 4px 0 0;
+    padding: 0;
 }
 
 .footerSelect span {
@@ -290,7 +309,7 @@
 
     .footerButton,
     .footerSelect {
-        height: 40px;
+        height: 100%;
     }
 
     .compareBadge {

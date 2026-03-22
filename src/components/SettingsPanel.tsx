@@ -94,6 +94,14 @@ export function SettingsPanel(props: SettingsPanelProps) {
             </div>
 
             <Section title="Output">
+                <NumberRow
+                    label="timeToWaitBeforeSuspend"
+                    value={props.settings.timeToWaitBeforeSuspend}
+                    step={100}
+                    min={0}
+                    onChange={(value) => update({ timeToWaitBeforeSuspend: Math.max(0, value) })}
+                />
+
                 <SelectRow
                     label="Resize"
                     value={props.settings.resize}

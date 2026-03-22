@@ -124,6 +124,10 @@ export interface ViewerSceneInfo {
     message: string;
 }
 
+export interface ViewerDisposable {
+    dispose: () => void;
+}
+
 export interface ViewerCanvasHandle {
     loadFiles: (files: FileList | File[]) => Promise<void>;
     toggleInspector: () => Promise<void>;
@@ -132,12 +136,15 @@ export interface ViewerCanvasHandle {
     toggleAnimationPlayback: () => AnimationControlsState;
     setAnimationFrame: (frame: number) => AnimationControlsState;
     setActiveAnimationGroup: (groupIndex: number) => AnimationControlsState;
+    suspendRendering: () => ViewerDisposable;
+    markSceneMutated: () => void;
 }
 
 interface ViewerCanvasProps {
     environment: EnvironmentPreset;
     skyboxEnabled: boolean;
     wireframeEnabled: boolean;
+    timeToWaitBeforeSuspend: number;
     optimizedAsset: { url: string; kind: LoadedAssetKind } | null;
     sourceSceneVersion: number;
     onSceneInfoChange: (info: ViewerSceneInfo) => void;
@@ -159,7 +166,98 @@ export const ViewerCanvas = forwardRef<ViewerCanvasHandle, ViewerCanvasProps>(fu
     const compareOverlayRef = useRef<Layer | null>(null);
     const animationObserverRef = useRef<ReturnType<Scene["onBeforeRenderObservable"]["add"]> | null>(null);
     const animationStateRef = useRef<AnimationControlsState>(createEmptyAnimationState());
+    const renderLoopRef = useRef<(() => void) | null>(null);
+    const renderLoopControllerRef = useRef<ViewerDisposable | null>(null);
+    const suspendRenderCountRef = useRef(0);
+    const sceneMutatedRef = useRef(true);
+    const renderedReadyFrameRef = useRef(false);
+    const lastRenderActivityAtRef = useRef(Date.now());
     const [isDragActive, setIsDragActive] = useState(false);
+
+    const cameraHasMotion = (scene: Scene) =>
+        scene.activeCameras?.some((camera) => {
+            if (!(camera instanceof ArcRotateCamera)) {
+                return false;
+            }
+
+            return (
+                Math.abs(camera.inertialAlphaOffset) > 0.0001 ||
+                Math.abs(camera.inertialBetaOffset) > 0.0001 ||
+                Math.abs(camera.inertialRadiusOffset) > 0.0001 ||
+                Math.abs(camera.inertialPanningX) > 0.0001 ||
+                Math.abs(camera.inertialPanningY) > 0.0001
+            );
+        }) === true;
+
+    const shouldRenderScene = (scene: Scene) =>
+        sceneMutatedRef.current ||
+        scene.debugLayer?.isVisible() === true ||
+        cameraHasMotion(scene) ||
+        scene.animationGroups.some((group) => group.isPlaying) ||
+        Boolean(compareOverlayRef.current);
+
+    const stopRendering = () => {
+        const engine = engineRef.current;
+        const renderLoop = renderLoopRef.current;
+        if (!engine || !renderLoop || !renderLoopControllerRef.current) {
+            return;
+        }
+
+        engine.stopRenderLoop(renderLoop);
+        renderLoopRef.current = null;
+        renderLoopControllerRef.current = null;
+        renderedReadyFrameRef.current = false;
+    };
+
+    const beginRendering = () => {
+        const engine = engineRef.current;
+        if (!engine || renderLoopControllerRef.current || suspendRenderCountRef.current > 0) {
+            return;
+        }
+
+        const renderLoop = () => {
+            const scene = sceneRef.current;
+            if (!scene) {
+                stopRendering();
+                return;
+            }
+
+            let shouldRender = shouldRenderScene(scene);
+            if (!shouldRender && !renderedReadyFrameRef.current) {
+                renderedReadyFrameRef.current = scene.isReady(true);
+                shouldRender = true;
+            }
+
+            if (!shouldRender) {
+                const now = Date.now();
+                if (now - lastRenderActivityAtRef.current >= props.timeToWaitBeforeSuspend) {
+                    stopRendering();
+                    return;
+                }
+            } else {
+                lastRenderActivityAtRef.current = Date.now();
+            }
+
+            sceneMutatedRef.current = false;
+            scene.render();
+            renderedReadyFrameRef.current = true;
+        };
+
+        renderLoopRef.current = renderLoop;
+        renderLoopControllerRef.current = {
+            dispose: () => {
+                stopRendering();
+            },
+        };
+        engine.runRenderLoop(renderLoop);
+    };
+
+    const markSceneMutated = () => {
+        sceneMutatedRef.current = true;
+        renderedReadyFrameRef.current = false;
+        lastRenderActivityAtRef.current = Date.now();
+        beginRendering();
+    };
 
     const loadIntoViewer = async (files: File[], dataTransferItems: DataTransferItemList | null, reason: "load" | "reload") => {
         await loadFilesIntoViewer(files, {
@@ -184,6 +282,7 @@ export const ViewerCanvas = forwardRef<ViewerCanvasHandle, ViewerCanvasProps>(fu
             onSceneInfoChange: props.onSceneInfoChange,
             onAnimationStateChange: props.onAnimationStateChange,
             onSourceAssetLoaded: props.onSourceAssetLoaded,
+            onSceneMutated: markSceneMutated,
         });
     };
 
@@ -212,23 +311,34 @@ export const ViewerCanvas = forwardRef<ViewerCanvasHandle, ViewerCanvasProps>(fu
             sourceLabel: "Preview Scene",
             message: "Drag files onto the canvas or use Open to load a scene.",
         });
-
-        const renderLoop = () => {
-            sceneRef.current?.render();
-        };
-        engine.runRenderLoop(renderLoop);
+        markSceneMutated();
 
         const handleResize = () => engine.resize();
         const resizeObserver = new ResizeObserver(() => {
             engine.resize();
+            markSceneMutated();
         });
         resizeObserver.observe(canvas);
         window.addEventListener("resize", handleResize);
 
+        const handleCanvasInteraction = () => {
+            markSceneMutated();
+        };
+        canvas.addEventListener("pointerdown", handleCanvasInteraction);
+        canvas.addEventListener("pointermove", handleCanvasInteraction);
+        canvas.addEventListener("wheel", handleCanvasInteraction, { passive: true });
+        canvas.addEventListener("touchstart", handleCanvasInteraction, { passive: true });
+        canvas.addEventListener("touchmove", handleCanvasInteraction, { passive: true });
+
         return () => {
-            engine.stopRenderLoop(renderLoop);
+            stopRendering();
             resizeObserver.disconnect();
             window.removeEventListener("resize", handleResize);
+            canvas.removeEventListener("pointerdown", handleCanvasInteraction);
+            canvas.removeEventListener("pointermove", handleCanvasInteraction);
+            canvas.removeEventListener("wheel", handleCanvasInteraction);
+            canvas.removeEventListener("touchstart", handleCanvasInteraction);
+            canvas.removeEventListener("touchmove", handleCanvasInteraction);
             if (compareOverlayRef.current) {
                 compareOverlayRef.current.dispose();
                 compareOverlayRef.current = null;
@@ -298,6 +408,7 @@ export const ViewerCanvas = forwardRef<ViewerCanvasHandle, ViewerCanvasProps>(fu
         }
 
         applyEnvironment(scene, props.environment, props.skyboxEnabled, sourceSkyboxRef, optimizedSkyboxRef, environmentPathRef);
+        markSceneMutated();
     }, [props.environment, props.skyboxEnabled]);
 
     useEffect(() => {
@@ -307,6 +418,7 @@ export const ViewerCanvas = forwardRef<ViewerCanvasHandle, ViewerCanvasProps>(fu
         }
 
         applyWireframe(scene, props.wireframeEnabled);
+        markSceneMutated();
     }, [props.wireframeEnabled]);
 
     useEffect(() => {
@@ -315,7 +427,7 @@ export const ViewerCanvas = forwardRef<ViewerCanvasHandle, ViewerCanvasProps>(fu
             return;
         }
 
-        void syncOptimizedAsset(scene, props.optimizedAsset, optimizedMeshesRef, props.onSceneInfoChange);
+        void syncOptimizedAsset(scene, props.optimizedAsset, optimizedMeshesRef, props.onSceneInfoChange, markSceneMutated);
     }, [props.optimizedAsset, props.sourceSceneVersion, props.onSceneInfoChange]);
 
     useImperativeHandle(
@@ -338,12 +450,14 @@ export const ViewerCanvas = forwardRef<ViewerCanvasHandle, ViewerCanvasProps>(fu
                 await import("@babylonjs/inspector");
                 if (scene.debugLayer.isVisible()) {
                     scene.debugLayer.hide();
+                    markSceneMutated();
                     props.onSceneInfoChange({
                         sourceLabel: "Inspector",
                         message: "Inspector hidden.",
                     });
                 } else {
                     await scene.debugLayer.show({ embedMode: true });
+                    markSceneMutated();
                     props.onSceneInfoChange({
                         sourceLabel: "Inspector",
                         message: "Inspector shown for the current scene.",
@@ -359,6 +473,7 @@ export const ViewerCanvas = forwardRef<ViewerCanvasHandle, ViewerCanvasProps>(fu
 
                 const result = await captureActiveSceneComparison(scene);
                 showCompareOverlay(scene, result.diffDataUrl, compareOverlayRef);
+                markSceneMutated();
                 return result;
             },
             toggleAnimationPlayback: () => {
@@ -368,6 +483,7 @@ export const ViewerCanvas = forwardRef<ViewerCanvasHandle, ViewerCanvasProps>(fu
                 }
 
                 const nextState = togglePrimaryAnimationPlayback(scene);
+                markSceneMutated();
                 props.onAnimationStateChange?.(nextState);
                 return nextState;
             },
@@ -378,6 +494,7 @@ export const ViewerCanvas = forwardRef<ViewerCanvasHandle, ViewerCanvasProps>(fu
                 }
 
                 const nextState = setPrimaryAnimationFrame(scene, frame);
+                markSceneMutated();
                 props.onAnimationStateChange?.(nextState);
                 return nextState;
             },
@@ -388,9 +505,29 @@ export const ViewerCanvas = forwardRef<ViewerCanvasHandle, ViewerCanvasProps>(fu
                 }
 
                 const nextState = setActiveAnimationGroup(scene, groupIndex);
+                markSceneMutated();
                 props.onAnimationStateChange?.(nextState);
                 return nextState;
             },
+            suspendRendering: () => {
+                stopRendering();
+                suspendRenderCountRef.current += 1;
+                let disposed = false;
+                return {
+                    dispose: () => {
+                        if (disposed) {
+                            return;
+                        }
+
+                        disposed = true;
+                        suspendRenderCountRef.current = Math.max(0, suspendRenderCountRef.current - 1);
+                        if (suspendRenderCountRef.current === 0) {
+                            beginRendering();
+                        }
+                    },
+                };
+            },
+            markSceneMutated,
         }),
         [props.environment, props.onAnimationStateChange, props.onSceneInfoChange, props.onSourceAssetLoaded, props.optimizedAsset, props.skyboxEnabled, props.wireframeEnabled]
     );
@@ -527,7 +664,8 @@ async function syncOptimizedAsset(
     scene: Scene,
     optimizedAsset: { url: string; kind: LoadedAssetKind } | null,
     optimizedMeshesRef: MutableRefObject<AbstractMesh[]>,
-    onSceneInfoChange: (info: ViewerSceneInfo) => void
+    onSceneInfoChange: (info: ViewerSceneInfo) => void,
+    onSceneMutated: () => void
 ) {
     for (const mesh of optimizedMeshesRef.current) {
         mesh.dispose(false, true);
@@ -551,6 +689,7 @@ async function syncOptimizedAsset(
             mesh.layerMask = OPTIMIZED_LAYER_MASK;
         }
         optimizedMeshesRef.current = importResult.meshes;
+        onSceneMutated();
     } catch (error) {
         onSceneInfoChange({
             sourceLabel: "Optimized Preview Error",
@@ -754,6 +893,7 @@ async function loadFilesIntoViewer(
         onSceneInfoChange: (info: ViewerSceneInfo) => void;
         onAnimationStateChange?: (state: AnimationControlsState) => void;
         onSourceAssetLoaded?: (asset: LoadedAssetInfo, reason: "load" | "reload") => void | Promise<void>;
+        onSceneMutated: () => void;
     }
 ) {
     const engine = context.engineRef.current;
@@ -845,6 +985,7 @@ async function loadFilesIntoViewer(
         applyWireframe(nextScene, context.wireframeEnabled);
         await context.onSourceAssetLoaded?.(loadedAsset, context.loadReason);
         attachAnimationObserver(nextScene, context.animationObserverRef, context.animationStateRef, context.onAnimationStateChange);
+        context.onSceneMutated();
 
         context.onSceneInfoChange({
             sourceLabel: getDisplayName(sceneFile ?? (textureFile as File)),
@@ -854,7 +995,6 @@ async function loadFilesIntoViewer(
         });
     } catch (error) {
         const message = getErrorMessage(error, "Unknown loading error");
-        console.error("Viewer load failed", error);
         context.animationStateRef.current = createEmptyAnimationState();
         context.onAnimationStateChange?.(context.animationStateRef.current);
         context.onSceneInfoChange({
@@ -949,6 +1089,7 @@ function showCompareOverlay(scene: Scene, diffDataUrl: string, compareOverlayRef
             } else {
                 overlay.dispose();
             }
+            scene.render();
         }, 3000);
     });
 }

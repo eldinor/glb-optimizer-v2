@@ -1,6 +1,7 @@
 import type { OptimizerSettings } from "./model";
 
 export const DEFAULT_SETTINGS: OptimizerSettings = {
+    timeToWaitBeforeSuspend: 1000,
     resize: "No Resize",
     textureMode: "webp",
     textureExportMode: "image",

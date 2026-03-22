@@ -1,5 +1,6 @@
 import type { AnimationControlsController, AnimationControlsState } from "./AnimationControls.types";
 import { Button, Field, Select, Slider } from "@fluentui/react-components";
+import { PauseRegular, PlayRegular } from "@fluentui/react-icons";
 import "./AnimationControls.css";
 
 interface AnimationControlsProps {
@@ -17,6 +18,7 @@ export function AnimationControls(props: AnimationControlsProps) {
     return (
         <div className={props.className ? `animationControls ${props.className}` : "animationControls"} aria-label="Animation controls">
             <Button className="animationControlsButton" appearance="secondary" onClick={props.controller.togglePlayback}>
+                {state.isPlaying ? <PauseRegular /> : <PlayRegular />}
                 {state.isPlaying ? "Pause" : "Play"}
             </Button>
             <Slider

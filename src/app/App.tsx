@@ -1,6 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AppStatus, LoadedAssetKind, ScreenshotCompareState } from "./model";
 import { Button, FluentProvider, Select, webLightTheme } from "@fluentui/react-components";
+import {
+    ArrowClockwiseRegular,
+    ArrowDownloadRegular,
+    ArrowResetRegular,
+    CodeRegular,
+    FolderOpenRegular,
+    GridRegular,
+    ImageMultipleRegular,
+    QuestionCircleRegular,
+    SettingsRegular,
+    WeatherSunnyRegular,
+} from "@fluentui/react-icons";
 import { DEFAULT_SETTINGS } from "./defaultSettings";
 import { usePersistentSettings } from "./usePersistentSettings";
 import { SettingsPanel } from "../components/SettingsPanel";
@@ -266,32 +278,37 @@ export function App() {
             }));
 
             try {
-                const result = await optimizeLoadedAsset(asset, settings);
-                if (optimizedAsset) {
-                    URL.revokeObjectURL(optimizedAsset.url);
-                    if (optimizedAsset.previewUrl !== optimizedAsset.url) {
-                        URL.revokeObjectURL(optimizedAsset.previewUrl);
+                const renderingSuspension = viewerRef.current?.suspendRendering();
+                try {
+                    const result = await optimizeLoadedAsset(asset, settings);
+                    if (optimizedAsset) {
+                        URL.revokeObjectURL(optimizedAsset.url);
+                        if (optimizedAsset.previewUrl !== optimizedAsset.url) {
+                            URL.revokeObjectURL(optimizedAsset.previewUrl);
+                        }
                     }
+                    setOptimizedAsset({
+                        url: result.objectUrl,
+                        kind: result.kind,
+                        downloadFileName: result.downloadFileName,
+                        previewUrl: result.previewObjectUrl,
+                        previewKind: result.previewKind,
+                    });
+                    lastOptimizedSettingsSignatureRef.current = getSettingsSignature(settings);
+                    setStatus((current) => ({
+                        ...current,
+                        optimizedLabel: formatMegabytes(result.sizeBytes),
+                        optimizedCompression: result.compressionLabel,
+                        message:
+                            asset.kind === "texture"
+                                ? settings.textureExportMode === "image"
+                                    ? "Reload complete. Optimized texture image and preview plane updated for the current settings."
+                                    : "Reload complete. Optimized GLB plane updated for the current settings."
+                                : "Reload complete. Optimized GLB updated for the current settings.",
+                    }));
+                } finally {
+                    renderingSuspension?.dispose();
                 }
-                setOptimizedAsset({
-                    url: result.objectUrl,
-                    kind: result.kind,
-                    downloadFileName: result.downloadFileName,
-                    previewUrl: result.previewObjectUrl,
-                    previewKind: result.previewKind,
-                });
-                lastOptimizedSettingsSignatureRef.current = getSettingsSignature(settings);
-                setStatus((current) => ({
-                    ...current,
-                    optimizedLabel: formatMegabytes(result.sizeBytes),
-                    optimizedCompression: result.compressionLabel,
-                    message:
-                        asset.kind === "texture"
-                            ? settings.textureExportMode === "image"
-                                ? "Reload complete. Optimized texture image and preview plane updated for the current settings."
-                                : "Reload complete. Optimized GLB plane updated for the current settings."
-                            : "Reload complete. Optimized GLB updated for the current settings.",
-                }));
             } catch (error) {
                 setStatus((current) => ({
                     ...current,
@@ -344,33 +361,38 @@ export function App() {
         }));
 
         try {
-            const result = await optimizeLoadedAsset(asset, settings);
-            if (optimizedAsset) {
-                URL.revokeObjectURL(optimizedAsset.url);
-                if (optimizedAsset.previewUrl !== optimizedAsset.url) {
-                    URL.revokeObjectURL(optimizedAsset.previewUrl);
+            const renderingSuspension = viewerRef.current?.suspendRendering();
+            try {
+                const result = await optimizeLoadedAsset(asset, settings);
+                if (optimizedAsset) {
+                    URL.revokeObjectURL(optimizedAsset.url);
+                    if (optimizedAsset.previewUrl !== optimizedAsset.url) {
+                        URL.revokeObjectURL(optimizedAsset.previewUrl);
+                    }
                 }
-            }
 
-            setOptimizedAsset({
-                url: result.objectUrl,
-                kind: result.kind,
-                downloadFileName: result.downloadFileName,
-                previewUrl: result.previewObjectUrl,
-                previewKind: result.previewKind,
-            });
-            lastOptimizedSettingsSignatureRef.current = getSettingsSignature(settings);
-            setStatus((current) => ({
-                ...current,
-                optimizedLabel: formatMegabytes(result.sizeBytes),
-                optimizedCompression: result.compressionLabel,
-                message:
-                    asset.kind === "texture"
-                        ? settings.textureExportMode === "image"
-                            ? "Texture optimization complete. The optimized image is ready to download, and the updated preview plane is shown on the right."
-                            : "Texture optimization complete. The optimized GLB plane is ready to download."
-                        : "Optimization complete. The optimized GLB is ready to download.",
-            }));
+                setOptimizedAsset({
+                    url: result.objectUrl,
+                    kind: result.kind,
+                    downloadFileName: result.downloadFileName,
+                    previewUrl: result.previewObjectUrl,
+                    previewKind: result.previewKind,
+                });
+                lastOptimizedSettingsSignatureRef.current = getSettingsSignature(settings);
+                setStatus((current) => ({
+                    ...current,
+                    optimizedLabel: formatMegabytes(result.sizeBytes),
+                    optimizedCompression: result.compressionLabel,
+                    message:
+                        asset.kind === "texture"
+                            ? settings.textureExportMode === "image"
+                                ? "Texture optimization complete. The optimized image is ready to download, and the updated preview plane is shown on the right."
+                                : "Texture optimization complete. The optimized GLB plane is ready to download."
+                            : "Optimization complete. The optimized GLB is ready to download.",
+                }));
+            } finally {
+                renderingSuspension?.dispose();
+            }
         } catch (error) {
             setStatus((current) => ({
                 ...current,
@@ -533,6 +555,7 @@ export function App() {
                     environment={selectedEnvironment}
                     skyboxEnabled={skyboxEnabled}
                     wireframeEnabled={wireframeEnabled}
+                    timeToWaitBeforeSuspend={settings.timeToWaitBeforeSuspend}
                     optimizedAsset={viewerOptimizedAsset}
                     sourceSceneVersion={sourceSceneVersion}
                     onSourceAssetLoaded={handleSourceAssetLoaded}
@@ -548,9 +571,12 @@ export function App() {
                 </div>
 
                 <div className="footerCluster">
-                    <Button className="footerButton footerPrimary" appearance="primary" onClick={() => fileInputRef.current?.click()}>
-                        Open
-                    </Button>
+                    <button className="footerButton footerPrimary" type="button" onClick={() => fileInputRef.current?.click()}>
+                        <span className="footerButtonContent">
+                            <FolderOpenRegular className="footerButtonIcon" />
+                            <span className="footerButtonLabel">Open</span>
+                        </span>
+                    </button>
                     <label className="footerSelect">
                         <span>Environment</span>
                         <Select
@@ -572,18 +598,21 @@ export function App() {
                             ))}
                         </Select>
                     </label>
-                    <Button
+                    <button
                         className="footerButton"
-                        appearance="secondary"
+                        type="button"
                         onClick={async () => {
                             await viewerRef.current?.toggleInspector();
                         }}
                     >
-                        Inspector
-                    </Button>
-                    <Button
+                        <span className="footerButtonContent">
+                            <CodeRegular className="footerButtonIcon" />
+                            <span className="footerButtonLabel">Inspector</span>
+                        </span>
+                    </button>
+                    <button
                         className="footerButton"
-                        appearance="secondary"
+                        type="button"
                         onClick={() => {
                             setSkyboxEnabled((current) => {
                                 const nextValue = !current;
@@ -595,11 +624,14 @@ export function App() {
                             });
                         }}
                     >
-                        {skyboxEnabled ? "Skybox On" : "Skybox Off"}
-                    </Button>
-                    <Button
+                        <span className="footerButtonContent">
+                            <WeatherSunnyRegular className="footerButtonIcon" />
+                            <span className="footerButtonLabel">{skyboxEnabled ? "Skybox On" : "Skybox Off"}</span>
+                        </span>
+                    </button>
+                    <button
                         className="footerButton"
-                        appearance="secondary"
+                        type="button"
                         onClick={() => {
                             setWireframeEnabled((current) => {
                                 const nextValue = !current;
@@ -611,8 +643,11 @@ export function App() {
                             });
                         }}
                     >
-                        {wireframeEnabled ? "Solid" : "Wireframe"}
-                    </Button>
+                        <span className="footerButtonContent">
+                            <GridRegular className="footerButtonIcon" />
+                            <span className="footerButtonLabel">{wireframeEnabled ? "Solid" : "Wireframe"}</span>
+                        </span>
+                    </button>
                 </div>
 
                 <div className="footerCluster">
@@ -620,28 +655,45 @@ export function App() {
                         state={animationState}
                         controller={animationController}
                     />
-                    <Button className="footerButton footerAccent" appearance="primary" onClick={triggerOptimization} disabled={isOptimizing}>
-                        {isOptimizing
-                            ? "Optimizing..."
-                            : viewerRef.current?.getLoadedAssetInfo()?.kind === "texture"
-                              ? "Convert Texture"
-                              : "Optimize GLB"}
-                    </Button>
-                    <Button className="footerButton" appearance="secondary" onClick={downloadOptimizedAsset}>
-                        Download
-                    </Button>
-                    <Button className="footerButton" appearance="secondary" onClick={runScreenshotCompare} disabled={isComparing}>
-                        {isComparing ? "Comparing..." : "Compare"}
-                    </Button>
-                    <Button className="footerButton" appearance="secondary" onClick={() => setSettingsOpen((current) => !current)}>
-                        Settings
-                    </Button>
-                    <Button className="footerButton" appearance="secondary" onClick={() => setHelpOpen((current) => !current)}>
-                        Help
-                    </Button>
-                    <Button
+                    <button className="footerButton footerAccent" type="button" onClick={triggerOptimization} disabled={isOptimizing}>
+                        <span className="footerButtonContent">
+                            <ArrowClockwiseRegular className="footerButtonIcon" />
+                            <span className="footerButtonLabel">
+                                {isOptimizing
+                                    ? "Optimizing..."
+                                    : viewerRef.current?.getLoadedAssetInfo()?.kind === "texture"
+                                      ? "Convert Texture"
+                                    : "Optimize GLB"}
+                            </span>
+                        </span>
+                    </button>
+                    <button className="footerButton" type="button" onClick={downloadOptimizedAsset}>
+                        <span className="footerButtonContent">
+                            <ArrowDownloadRegular className="footerButtonIcon" />
+                            <span className="footerButtonLabel">Download</span>
+                        </span>
+                    </button>
+                    <button className="footerButton" type="button" onClick={runScreenshotCompare} disabled={isComparing}>
+                        <span className="footerButtonContent">
+                            <ImageMultipleRegular className="footerButtonIcon" />
+                            <span className="footerButtonLabel">{isComparing ? "Comparing..." : "Compare"}</span>
+                        </span>
+                    </button>
+                    <button className="footerButton" type="button" onClick={() => setSettingsOpen((current) => !current)}>
+                        <span className="footerButtonContent">
+                            <SettingsRegular className="footerButtonIcon" />
+                            <span className="footerButtonLabel">Settings</span>
+                        </span>
+                    </button>
+                    <button className="footerButton" type="button" onClick={() => setHelpOpen((current) => !current)}>
+                        <span className="footerButtonContent">
+                            <QuestionCircleRegular className="footerButtonIcon" />
+                            <span className="footerButtonLabel">Help</span>
+                        </span>
+                    </button>
+                    <button
                         className="footerButton"
-                        appearance="secondary"
+                        type="button"
                         onClick={() => {
                             resetSettings();
                             setStatus({
@@ -650,8 +702,11 @@ export function App() {
                             });
                         }}
                     >
-                        Reset
-                    </Button>
+                        <span className="footerButtonContent">
+                            <ArrowResetRegular className="footerButtonIcon" />
+                            <span className="footerButtonLabel">Reset</span>
+                        </span>
+                    </button>
                 </div>
             </footer>
 

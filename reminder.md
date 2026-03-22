@@ -76,10 +76,15 @@ Still to finish:
 - Remove monorepo-specific assumptions
 - Revisit bundle size and add chunking or lazy loading where useful
 - Review which reusable modules should live in shared packages vs stay app-local
+- Re-profile the new viewer rendering-suspension / mutation-driven render loop and verify idle plus optimize behavior improved as expected
+- Re-run at least these traces after the render-loop change:
+  - `idle-with-glb-loaded`
+  - `optimize-glb`
 
 ## Nice To Have
 - Add a stronger migration checklist for "must-have before repo split" vs "can wait until after repo split"
 - Add small regression checks for optimizer flow and compare flow
+- Revisit the Babylon-style render suspension implementation if we want to push further toward full auto-suspend behavior
 - Revisit inspector loading strategy to reduce initial bundle size
 - Add material variants support for `KHR_materials_variants` if we decide it should come back into near-term scope
 - Add camera picker UI and camera switching if we decide they are needed again
