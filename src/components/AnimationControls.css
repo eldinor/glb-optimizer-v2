@@ -9,12 +9,6 @@
 .animationControlsButton {
     flex: 0 0 auto;
     height: 44px;
-    padding: 0 16px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: #162d3a;
-    color: #f8fbff;
-    cursor: pointer;
-    font-weight: 600;
 }
 
 .animationControlsSlider {
@@ -27,33 +21,22 @@
 
 .animationControlsSelect {
     display: flex;
-    align-items: center;
-    gap: 8px;
     flex: 0 1 220px;
     min-width: 150px;
+    margin-bottom: 0;
+}
+
+.animationControlsButton.fui-Button {
     height: 44px;
-    padding: 0 12px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: #162d3a;
-    color: #f8fbff;
+    border-radius: 8px;
 }
 
-.animationControlsSelect span {
-    color: #c5d7e9;
-    font-size: 0.82rem;
-}
-
-.animationControlsSelect select {
+.animationControlsSelect .fui-Select {
     width: 100%;
-    min-width: 0;
-    border: 0;
-    background: transparent;
-    color: inherit;
 }
 
-.animationControlsButton:hover,
-.animationControlsSelect:hover {
-    background: #214253;
+.animationControlsSlider .fui-Slider {
+    width: 100%;
 }
 
 @media (max-width: 768px) {

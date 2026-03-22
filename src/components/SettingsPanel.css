@@ -3,10 +3,16 @@
     background: transparent;
 }
 
+.settingsIntro {
+    display: grid;
+    gap: 8px;
+}
+
 .settingsIntro h2,
 .settingsSection h2 {
     margin: 0;
     font-size: 1rem;
+    color: #0f172a;
 }
 
 .settingsSection + .settingsSection,
@@ -24,27 +30,21 @@
     display: grid;
     gap: 8px;
     font-size: 0.94rem;
-    color: #d7e4f3;
+    color: #334155;
 }
 
-.fieldRow input,
-.fieldRow select {
+.fieldRow .fui-Input,
+.fieldRow .fui-Select {
     width: 100%;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(255, 255, 255, 0.05);
-    color: inherit;
-    padding: 10px 12px;
 }
 
 .checkboxRow {
-    grid-template-columns: 1fr auto;
-    align-items: center;
+    display: block;
 }
 
-.checkboxRow input {
-    width: 18px;
-    height: 18px;
-    padding: 0;
+.checkboxRow .fui-Switch {
+    justify-content: space-between;
+    width: 100%;
 }
 
 .settingsFooter {

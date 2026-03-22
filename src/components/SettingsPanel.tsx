@@ -1,5 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { LoadedAssetKind, OptimizerSettings } from "../app/model";
+import { Button, Field, Input, Select, Switch, Text } from "@fluentui/react-components";
 import "./SettingsPanel.css";
 
 interface SettingsPanelProps {
@@ -25,10 +26,9 @@ function ToggleRow(props: {
     onChange: (next: boolean) => void;
 }) {
     return (
-        <label className="fieldRow checkboxRow">
-            <span>{props.label}</span>
-            <input type="checkbox" checked={props.checked} onChange={(event) => props.onChange(event.target.checked)} />
-        </label>
+        <div className="fieldRow checkboxRow">
+            <Switch label={props.label} checked={props.checked} onChange={(_event, data) => props.onChange(Boolean(data.checked))} />
+        </div>
     );
 }
 
@@ -41,17 +41,16 @@ function NumberRow(props: {
     onChange: (next: number) => void;
 }) {
     return (
-        <label className="fieldRow">
-            <span>{props.label}</span>
-            <input
+        <Field className="fieldRow" label={props.label}>
+            <Input
                 type="number"
-                value={props.value}
+                value={String(props.value)}
                 step={props.step}
                 min={props.min}
                 max={props.max}
                 onChange={(event) => props.onChange(Number(event.target.value))}
             />
-        </label>
+        </Field>
     );
 }
 
@@ -62,16 +61,15 @@ function SelectRow<T extends string>(props: {
     onChange: (next: T) => void;
 }) {
     return (
-        <label className="fieldRow">
-            <span>{props.label}</span>
-            <select value={props.value} onChange={(event) => props.onChange(event.target.value as T)}>
+        <Field className="fieldRow" label={props.label}>
+            <Select value={props.value} onChange={(event) => props.onChange(event.target.value as T)}>
                 {props.options.map((option) => (
                     <option key={option.value} value={option.value}>
                         {option.label}
                     </option>
                 ))}
-            </select>
-        </label>
+            </Select>
+        </Field>
     );
 }
 
@@ -89,7 +87,9 @@ export function SettingsPanel(props: SettingsPanelProps) {
             <div className="settingsIntro">
                 <h2>Optimization Controls</h2>
                 {isTextureOnlyMode ? (
-                    <p>Texture-only mode uses the texture settings below. Mesh and scene transforms are hidden because they only affect GLB and GLTF assets.</p>
+                    <Text block>
+                        Texture-only mode uses the texture settings below. Mesh and scene transforms are hidden because they only affect GLB and GLTF assets.
+                    </Text>
                 ) : null}
             </div>
 
@@ -189,16 +189,15 @@ export function SettingsPanel(props: SettingsPanelProps) {
             </Section>
 
             <div className="settingsFooter">
-                <button
-                    type="button"
-                    className="secondaryButton"
+                <Button
+                    appearance="secondary"
                     onClick={() => {
                         props.onSettingsChange(() => props.defaultSettings);
                         props.onExplainStage("Settings restored to defaults.");
                     }}
                 >
                     Restore Defaults
-                </button>
+                </Button>
             </div>
         </div>
     );

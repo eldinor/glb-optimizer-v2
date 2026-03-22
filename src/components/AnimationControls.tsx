@@ -1,4 +1,5 @@
 import type { AnimationControlsController, AnimationControlsState } from "./AnimationControls.types";
+import { Button, Field, Select, Slider } from "@fluentui/react-components";
 import "./AnimationControls.css";
 
 interface AnimationControlsProps {
@@ -15,29 +16,27 @@ export function AnimationControls(props: AnimationControlsProps) {
 
     return (
         <div className={props.className ? `animationControls ${props.className}` : "animationControls"} aria-label="Animation controls">
-            <button className="animationControlsButton" type="button" onClick={props.controller.togglePlayback}>
+            <Button className="animationControlsButton" appearance="secondary" onClick={props.controller.togglePlayback}>
                 {state.isPlaying ? "Pause" : "Play"}
-            </button>
-            <input
+            </Button>
+            <Slider
                 className="animationControlsSlider"
-                type="range"
                 min={state.fromFrame}
                 max={state.toFrame}
-                step="any"
+                step={0.01}
                 value={Number.isFinite(state.currentFrame) ? state.currentFrame : state.fromFrame}
-                onChange={(event) => props.controller.setFrame(Number(event.target.value))}
+                onChange={(_event, data) => props.controller.setFrame(Number(data.value))}
             />
             {state.groupNames.length > 1 ? (
-                <label className="animationControlsSelect">
-                    <span>Animation</span>
-                    <select value={state.groupIndex} onChange={(event) => props.controller.setGroupIndex(Number(event.target.value))}>
+                <Field className="animationControlsSelect" label="Animation">
+                    <Select value={String(state.groupIndex)} onChange={(event) => props.controller.setGroupIndex(Number(event.target.value))}>
                         {state.groupNames.map((groupName, index) => (
                             <option key={`${groupName}-${index}`} value={index}>
                                 {groupName || `Animation ${index + 1}`}
                             </option>
                         ))}
-                    </select>
-                </label>
+                    </Select>
+                </Field>
             ) : null}
         </div>
     );

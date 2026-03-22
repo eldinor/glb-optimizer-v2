@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { AppStatus, LoadedAssetKind, ScreenshotCompareState } from "./model";
+import { Button, FluentProvider, Select, webLightTheme } from "@fluentui/react-components";
 import { DEFAULT_SETTINGS } from "./defaultSettings";
 import { usePersistentSettings } from "./usePersistentSettings";
 import { SettingsPanel } from "../components/SettingsPanel";
@@ -289,6 +290,7 @@ export function App() {
     };
 
     return (
+        <FluentProvider theme={webLightTheme} className="appProvider">
         <div className="appShell">
             <input
                 ref={fileInputRef}
@@ -328,9 +330,9 @@ export function App() {
                     <div className="panelOverlay">
                         <div className="overlayHeader">
                             <h2>Settings</h2>
-                            <button className="overlayClose" type="button" onClick={() => setSettingsOpen(false)}>
+                            <Button className="overlayClose" appearance="subtle" onClick={() => setSettingsOpen(false)}>
                                 Close
-                            </button>
+                            </Button>
                         </div>
                         <SettingsPanel
                             settings={settings}
@@ -353,9 +355,9 @@ export function App() {
                     <div className="helpOverlay">
                         <div className="overlayHeader">
                             <h2>Help</h2>
-                            <button className="overlayClose" type="button" onClick={() => setHelpOpen(false)}>
+                            <Button className="overlayClose" appearance="subtle" onClick={() => setHelpOpen(false)}>
                                 Close
-                            </button>
+                            </Button>
                         </div>
                         <div className="helpContent">
                             <p>Open a scene or supported texture, adjust settings, then run optimization or conversion before downloading the result.</p>
@@ -472,12 +474,12 @@ export function App() {
                 </div>
 
                 <div className="footerCluster">
-                    <button className="footerButton footerPrimary" type="button" onClick={() => fileInputRef.current?.click()}>
+                    <Button className="footerButton footerPrimary" appearance="primary" onClick={() => fileInputRef.current?.click()}>
                         Open
-                    </button>
+                    </Button>
                     <label className="footerSelect">
                         <span>Environment</span>
-                        <select
+                        <Select
                             value={selectedEnvironmentId}
                             onChange={(event) => {
                                 const nextId = event.target.value;
@@ -494,20 +496,20 @@ export function App() {
                                     {preset.label}
                                 </option>
                             ))}
-                        </select>
+                        </Select>
                     </label>
-                    <button
+                    <Button
                         className="footerButton"
-                        type="button"
+                        appearance="secondary"
                         onClick={async () => {
                             await viewerRef.current?.toggleInspector();
                         }}
                     >
                         Inspector
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                         className="footerButton"
-                        type="button"
+                        appearance="secondary"
                         onClick={() => {
                             setSkyboxEnabled((current) => {
                                 const nextValue = !current;
@@ -520,10 +522,10 @@ export function App() {
                         }}
                     >
                         {skyboxEnabled ? "Skybox On" : "Skybox Off"}
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                         className="footerButton"
-                        type="button"
+                        appearance="secondary"
                         onClick={() => {
                             setWireframeEnabled((current) => {
                                 const nextValue = !current;
@@ -536,7 +538,7 @@ export function App() {
                         }}
                     >
                         {wireframeEnabled ? "Solid" : "Wireframe"}
-                    </button>
+                    </Button>
                 </div>
 
                 <div className="footerCluster">
@@ -544,28 +546,28 @@ export function App() {
                         state={animationState}
                         controller={animationController}
                     />
-                    <button className="footerButton footerAccent" type="button" onClick={triggerOptimization} disabled={isOptimizing}>
+                    <Button className="footerButton footerAccent" appearance="primary" onClick={triggerOptimization} disabled={isOptimizing}>
                         {isOptimizing
                             ? "Optimizing..."
                             : viewerRef.current?.getLoadedAssetInfo()?.kind === "texture"
                               ? "Convert Texture"
                               : "Optimize GLB"}
-                    </button>
-                    <button className="footerButton" type="button" onClick={downloadOptimizedAsset}>
+                    </Button>
+                    <Button className="footerButton" appearance="secondary" onClick={downloadOptimizedAsset}>
                         Download
-                    </button>
-                    <button className="footerButton" type="button" onClick={runScreenshotCompare} disabled={isComparing}>
+                    </Button>
+                    <Button className="footerButton" appearance="secondary" onClick={runScreenshotCompare} disabled={isComparing}>
                         {isComparing ? "Comparing..." : "Compare"}
-                    </button>
-                    <button className="footerButton" type="button" onClick={() => setSettingsOpen((current) => !current)}>
+                    </Button>
+                    <Button className="footerButton" appearance="secondary" onClick={() => setSettingsOpen((current) => !current)}>
                         Settings
-                    </button>
-                    <button className="footerButton" type="button" onClick={() => setHelpOpen((current) => !current)}>
+                    </Button>
+                    <Button className="footerButton" appearance="secondary" onClick={() => setHelpOpen((current) => !current)}>
                         Help
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                         className="footerButton"
-                        type="button"
+                        appearance="secondary"
                         onClick={() => {
                             resetSettings();
                             setStatus({
@@ -575,7 +577,7 @@ export function App() {
                         }}
                     >
                         Reset
-                    </button>
+                    </Button>
                 </div>
             </footer>
 
@@ -585,5 +587,6 @@ export function App() {
                 </div>
             ) : null}
         </div>
+        </FluentProvider>
     );
 }
