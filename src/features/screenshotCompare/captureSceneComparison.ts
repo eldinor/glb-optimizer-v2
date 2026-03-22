@@ -1,4 +1,4 @@
-import type { Scene } from "@babylonjs/core";
+import type { Scene } from "@babylonjs/core/scene";
 import { compareCanvasHalves } from "./compareImages";
 import type { ScreenshotCompareResult } from "./types";
 

@@ -40,8 +40,6 @@ Still to finish:
   - GLB plane export
 
 ## Optimization Behavior
-- Verify parity for `EXT_mesh_gpu_instancing` export behavior
-- Verify parity for `meshopt`, `quantize`, `reorder`, `simplify`, and `sparse` settings against the original app
 - Add any missing optimizer summary details such as original size, optimized size, and other useful output stats
 
 ## UI Parity
@@ -86,3 +84,5 @@ Still to finish:
 - Add material variants support for `KHR_materials_variants` if we decide it should come back into near-term scope
 - Add camera picker UI and camera switching if we decide they are needed again
 - Restore custom environment file loading for dropped `.env`, `.hdr`, and `.dds` if we decide it is needed again
+- Verify parity for `EXT_mesh_gpu_instancing` export behavior if we decide parity work should come back into scope
+- Verify parity for `meshopt`, `quantize`, `reorder`, `simplify`, and `sparse` settings against the original app if we decide parity work should come back into scope

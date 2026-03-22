@@ -1,23 +1,23 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import type { DragEvent, MutableRefObject } from "react";
-import {
-    AbstractMesh,
-    ArcRotateCamera,
-    Color4,
-    CubeTexture,
-    DracoCompression,
-    Engine,
-    FilesInput,
-    FramingBehavior,
-    HemisphericLight,
-    Layer,
-    Mesh,
-    PBRBaseMaterial,
-    Scene,
-    SceneLoader,
-    Vector3,
-    Viewport,
-} from "@babylonjs/core";
+import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
+import { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera";
+import { Color4 } from "@babylonjs/core/Maths/math.color";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { CubeTexture } from "@babylonjs/core/Materials/Textures/cubeTexture";
+import { DracoCompression } from "@babylonjs/core/Meshes/Compression/dracoCompression";
+import { Engine } from "@babylonjs/core/Engines/engine";
+import { FilesInput } from "@babylonjs/core/Misc/filesInput";
+import { FramingBehavior } from "@babylonjs/core/Behaviors/Cameras/framingBehavior";
+import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
+import { Layer } from "@babylonjs/core/Layers/layer";
+import type { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { PBRBaseMaterial } from "@babylonjs/core/Materials/PBR/pbrBaseMaterial";
+import { Scene } from "@babylonjs/core/scene";
+import { SceneLoader } from "@babylonjs/core/Loading/sceneLoader";
+import "@babylonjs/core/Loading/loadingScreen";
+import { Viewport } from "@babylonjs/core/Maths/math.viewport";
+import "@babylonjs/core/Helpers/sceneHelpers";
 import "@babylonjs/loaders/glTF";
 import "./ViewerCanvas.css";
 import type { EnvironmentPreset } from "../app/environmentPresets";
@@ -52,6 +52,34 @@ function getStandaloneTextureFile(files: File[]): File | undefined {
 
 function normalizeResourceUri(uri: string): string {
     return decodeURIComponent(uri).replace(/\\/g, "/").replace(/^\.\/+/, "").toLowerCase();
+}
+
+function getErrorMessage(error: unknown, fallback: string): string {
+    if (error instanceof Error && error.message) {
+        return error.message;
+    }
+
+    if (typeof error === "string" && error.trim()) {
+        return error;
+    }
+
+    if (typeof error === "object" && error !== null) {
+        const maybeMessage = "message" in error ? error.message : undefined;
+        if (typeof maybeMessage === "string" && maybeMessage.trim()) {
+            return maybeMessage;
+        }
+
+        try {
+            const serialized = JSON.stringify(error);
+            if (serialized && serialized !== "{}") {
+                return serialized;
+            }
+        } catch {
+            // Ignore serialization issues and fall back to the default message below.
+        }
+    }
+
+    return fallback;
 }
 
 async function getMissingGltfResources(sceneFile: File, files: File[]): Promise<string[]> {
@@ -526,7 +554,7 @@ async function syncOptimizedAsset(
     } catch (error) {
         onSceneInfoChange({
             sourceLabel: "Optimized Preview Error",
-            message: error instanceof Error ? `Optimized preview failed: ${error.message}` : "Optimized preview failed.",
+            message: `Optimized preview failed: ${getErrorMessage(error, "Unknown preview error")}`,
         });
     }
 }
@@ -739,14 +767,24 @@ async function loadFilesIntoViewer(
         extended.correctName = getDisplayName(file);
         return extended;
     });
-    const mergedFilesByName = new Map<string, File>();
-    for (const file of context.pendingFilesRef.current) {
-        mergedFilesByName.set(getDisplayName(file).toLowerCase(), file);
-    }
-    for (const file of incomingFiles) {
-        mergedFilesByName.set(getDisplayName(file).toLowerCase(), file);
-    }
-    const namedFiles = Array.from(mergedFilesByName.values()).map((file) => {
+    const incomingSceneFile = getSceneFile(incomingFiles);
+    const incomingTextureFile = getStandaloneTextureFile(incomingFiles);
+    const shouldReplacePendingFiles = context.loadReason === "reload" || Boolean(incomingSceneFile || incomingTextureFile);
+
+    const candidateFiles = shouldReplacePendingFiles
+        ? incomingFiles
+        : (() => {
+              const mergedFilesByName = new Map<string, File>();
+              for (const file of context.pendingFilesRef.current) {
+                  mergedFilesByName.set(getDisplayName(file).toLowerCase(), file);
+              }
+              for (const file of incomingFiles) {
+                  mergedFilesByName.set(getDisplayName(file).toLowerCase(), file);
+              }
+              return Array.from(mergedFilesByName.values());
+          })();
+
+    const namedFiles = candidateFiles.map((file) => {
         const extended = file as File & { correctName?: string };
         extended.correctName = getDisplayName(file);
         return extended;
@@ -815,12 +853,13 @@ async function loadFilesIntoViewer(
                 : "Texture loaded onto a preview plane. Optimization will reuse the same scene pipeline as any other imported asset.",
         });
     } catch (error) {
-        const message = error instanceof Error ? error.message : "Unknown loading error";
+        const message = getErrorMessage(error, "Unknown loading error");
+        console.error("Viewer load failed", error);
         context.animationStateRef.current = createEmptyAnimationState();
         context.onAnimationStateChange?.(context.animationStateRef.current);
         context.onSceneInfoChange({
             sourceLabel: "Load Error",
-            message,
+            message: `Load error: ${message}`,
         });
     }
 }

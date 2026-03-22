@@ -1,0 +1,96 @@
+.assetInfoSidebar {
+    position: absolute;
+    top: 84px;
+    left: 14px;
+    z-index: 7;
+    width: min(420px, calc(50vw - 22px));
+    max-height: calc(100vh - 180px);
+    overflow: auto;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    background: rgba(255, 255, 255, 0.94);
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
+    backdrop-filter: blur(12px);
+    border-radius: 10px;
+}
+
+.assetInfoSidebarHeader {
+    position: sticky;
+    top: 0;
+    padding: 10px 10px 0;
+    background: rgba(255, 255, 255, 0.96);
+}
+
+.assetInfoPanelLabel {
+    display: block;
+    margin-bottom: 6px;
+    color: #64748b;
+    font-size: 0.74rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.assetInfoPanel {
+    padding: 8px 10px 12px;
+}
+
+.assetInfoRow {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-top: 0;
+    padding: 8px 0;
+    border-top: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.assetInfoRow:first-child {
+    padding-top: 0;
+    border-top: 0;
+}
+
+.assetInfoRowLabel {
+    flex: 0 0 110px;
+    padding-top: 2px;
+    color: #64748b;
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.assetInfoRowValues {
+    display: grid;
+    flex: 1 1 auto;
+    gap: 4px;
+}
+
+.assetInfoRowValues span {
+    display: block;
+    padding: 3px 0;
+    color: #1f2937;
+    font-size: 0.78rem;
+    line-height: 1.35;
+}
+
+.assetInfoExtensions .assetInfoRowValues span {
+    color: #334155;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 0.72rem;
+    word-break: break-word;
+}
+
+@media (max-width: 768px) {
+    .assetInfoSidebar {
+        top: 114px;
+        left: 10px;
+        width: calc(100vw - 20px);
+        max-height: 32vh;
+    }
+
+    .assetInfoRow {
+        flex-direction: column;
+    }
+
+    .assetInfoRowLabel {
+        flex-basis: auto;
+        padding-top: 0;
+    }
+}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AppStatus, LoadedAssetKind, ScreenshotCompareState } from "./model";
 import { Button, FluentProvider, Select, webLightTheme } from "@fluentui/react-components";
 import { DEFAULT_SETTINGS } from "./defaultSettings";
@@ -6,10 +6,12 @@ import { usePersistentSettings } from "./usePersistentSettings";
 import { SettingsPanel } from "../components/SettingsPanel";
 import { ViewerCanvas, type ViewerCanvasHandle } from "../components/ViewerCanvas";
 import { AnimationControls } from "../components/AnimationControls";
+import { AssetInfoPanel } from "../components/AssetInfoPanel";
 import type { AnimationControlsController, AnimationControlsState } from "../components/AnimationControls.types";
 import { ENVIRONMENT_PRESETS } from "./environmentPresets";
 import { optimizeLoadedAsset } from "./optimizer";
 import { detectAssetFeaturesFromLoadedAsset } from "../features/assetFeatures/detectAssetFeatures";
+import { extractGltfAssetInfoFromLoadedAsset, type GltfAssetInfo } from "../features/assetFeatures/extractGltfAssetInfo";
 import "./App.css";
 
 const INITIAL_STATUS: AppStatus = {
@@ -31,7 +33,6 @@ const EMPTY_ANIMATION_STATE: AnimationControlsState = {
     groupIndex: 0,
     groupNames: [],
 };
-
 function formatMegabytes(sizeBytes: number): string {
     return `${(sizeBytes / (1024 * 1024)).toFixed(2)} MB`;
 }
@@ -64,9 +65,12 @@ export function App() {
     const [animationState, setAnimationState] = useState<AnimationControlsState>(EMPTY_ANIMATION_STATE);
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [helpOpen, setHelpOpen] = useState(false);
+    const [footerHidden, setFooterHidden] = useState(false);
+    const [sourceAssetInfo, setSourceAssetInfo] = useState<GltfAssetInfo | null>(null);
     const viewerRef = useRef<ViewerCanvasHandle | null>(null);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const lastOptimizedSettingsSignatureRef = useRef<string | null>(null);
+    const sourceAssetInfoRequestIdRef = useRef(0);
 
     const textureModeLabel = useMemo(() => {
         return {
@@ -79,6 +83,17 @@ export function App() {
             "ktx2-user": "KTX2 USER",
         }[settings.textureMode];
     }, [settings.textureMode]);
+
+    const viewerOptimizedAsset = useMemo(() => {
+        if (!optimizedAsset) {
+            return null;
+        }
+
+        return {
+            url: optimizedAsset.previewUrl,
+            kind: optimizedAsset.previewKind,
+        };
+    }, [optimizedAsset]);
 
     const selectedEnvironment = useMemo(() => {
         return ENVIRONMENT_PRESETS.find((preset) => preset.id === selectedEnvironmentId) ?? ENVIRONMENT_PRESETS[0];
@@ -96,6 +111,38 @@ export function App() {
             }
         };
     }, [optimizedAsset]);
+
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            const target = event.target as HTMLElement | null;
+            if (
+                target &&
+                (target instanceof HTMLInputElement ||
+                    target instanceof HTMLTextAreaElement ||
+                    target instanceof HTMLSelectElement ||
+                    target.isContentEditable)
+            ) {
+                return;
+            }
+
+            if (event.repeat || event.ctrlKey || event.metaKey || event.altKey) {
+                return;
+            }
+
+            // Use both code and key so the shortcut stays reliable across keyboard layouts.
+            if (event.code !== "Space" && event.key !== " " && event.key !== "Spacebar") {
+                return;
+            }
+
+            event.preventDefault();
+            setFooterHidden((current) => !current);
+        };
+
+        window.addEventListener("keydown", handleKeyDown);
+        return () => {
+            window.removeEventListener("keydown", handleKeyDown);
+        };
+    }, []);
 
     const updateSourceStatusFromLoadedAsset = () => {
         const asset = viewerRef.current?.getLoadedAssetInfo();
@@ -167,6 +214,112 @@ export function App() {
         }),
         []
     );
+
+    const handleSourceAssetLoaded = useCallback(
+        async (asset: { kind: LoadedAssetKind; primaryFileName: string; files: File[] }, reason: "load" | "reload") => {
+            const requestId = ++sourceAssetInfoRequestIdRef.current;
+            setSourceSceneVersion((current) => current + 1);
+            setCompareState(null);
+
+            if (asset.kind === "scene") {
+                void extractGltfAssetInfoFromLoadedAsset(asset).then((info) => {
+                    if (sourceAssetInfoRequestIdRef.current !== requestId) {
+                        return;
+                    }
+
+                    setSourceAssetInfo(info);
+                });
+            } else {
+                setSourceAssetInfo(null);
+            }
+
+            if (reason === "load") {
+                if (optimizedAsset) {
+                    URL.revokeObjectURL(optimizedAsset.url);
+                    if (optimizedAsset.previewUrl !== optimizedAsset.url) {
+                        URL.revokeObjectURL(optimizedAsset.previewUrl);
+                    }
+                    setOptimizedAsset(null);
+                }
+                lastOptimizedSettingsSignatureRef.current = null;
+                setAnimationState(EMPTY_ANIMATION_STATE);
+                resetOptimizedStatus();
+                updateSourceStatusFromLoadedAsset();
+                return;
+            }
+
+            updateSourceStatusFromLoadedAsset();
+
+            if (!optimizedAsset || !lastOptimizedSettingsSignatureRef.current) {
+                resetOptimizedStatus();
+                return;
+            }
+
+            if (lastOptimizedSettingsSignatureRef.current === getSettingsSignature(settings)) {
+                return;
+            }
+
+            setIsOptimizing(true);
+            setStatus((current) => ({
+                ...current,
+                message: `Reloaded ${asset.primaryFileName}. Re-running optimization with updated settings...`,
+            }));
+
+            try {
+                const result = await optimizeLoadedAsset(asset, settings);
+                if (optimizedAsset) {
+                    URL.revokeObjectURL(optimizedAsset.url);
+                    if (optimizedAsset.previewUrl !== optimizedAsset.url) {
+                        URL.revokeObjectURL(optimizedAsset.previewUrl);
+                    }
+                }
+                setOptimizedAsset({
+                    url: result.objectUrl,
+                    kind: result.kind,
+                    downloadFileName: result.downloadFileName,
+                    previewUrl: result.previewObjectUrl,
+                    previewKind: result.previewKind,
+                });
+                lastOptimizedSettingsSignatureRef.current = getSettingsSignature(settings);
+                setStatus((current) => ({
+                    ...current,
+                    optimizedLabel: formatMegabytes(result.sizeBytes),
+                    optimizedCompression: result.compressionLabel,
+                    message:
+                        asset.kind === "texture"
+                            ? settings.textureExportMode === "image"
+                                ? "Reload complete. Optimized texture image and preview plane updated for the current settings."
+                                : "Reload complete. Optimized GLB plane updated for the current settings."
+                            : "Reload complete. Optimized GLB updated for the current settings.",
+                }));
+            } catch (error) {
+                setStatus((current) => ({
+                    ...current,
+                    message: error instanceof Error ? error.message : "Optimization failed after reload.",
+                }));
+            } finally {
+                setIsOptimizing(false);
+            }
+        },
+        [optimizedAsset, settings]
+    );
+
+    const handleSceneInfoChange = useCallback(
+        (info: { sourceLabel: string; message: string }) => {
+            setStatus((current) => ({
+                ...current,
+                sourceName: info.sourceLabel,
+                message: info.message,
+                optimizedLabel: optimizedAsset ? current.optimizedLabel : "Converted Size",
+            }));
+            updateSourceStatusFromLoadedAsset();
+        },
+        [optimizedAsset]
+    );
+
+    const handleAnimationStateChange = useCallback((nextAnimationState: AnimationControlsState) => {
+        setAnimationState(nextAnimationState);
+    }, []);
 
     const triggerOptimization = async () => {
         const asset = viewerRef.current?.getLoadedAssetInfo();
@@ -325,6 +478,8 @@ export function App() {
                 {status.warning ? <div className="topInfoSecondary">{status.warning}</div> : null}
             </header>
 
+            <AssetInfoPanel info={sourceAssetInfo} />
+
             {settingsOpen ? (
                 <div className="overlayContainer">
                     <div className="panelOverlay">
@@ -378,96 +533,15 @@ export function App() {
                     environment={selectedEnvironment}
                     skyboxEnabled={skyboxEnabled}
                     wireframeEnabled={wireframeEnabled}
-                    optimizedAsset={optimizedAsset ? { url: optimizedAsset.previewUrl, kind: optimizedAsset.previewKind } : null}
+                    optimizedAsset={viewerOptimizedAsset}
                     sourceSceneVersion={sourceSceneVersion}
-                    onSourceAssetLoaded={async (asset, reason) => {
-                        setSourceSceneVersion((current) => current + 1);
-                        setCompareState(null);
-
-                        if (reason === "load") {
-                            if (optimizedAsset) {
-                                URL.revokeObjectURL(optimizedAsset.url);
-                                if (optimizedAsset.previewUrl !== optimizedAsset.url) {
-                                    URL.revokeObjectURL(optimizedAsset.previewUrl);
-                                }
-                                setOptimizedAsset(null);
-                            }
-                            lastOptimizedSettingsSignatureRef.current = null;
-                            setAnimationState(EMPTY_ANIMATION_STATE);
-                            resetOptimizedStatus();
-                            updateSourceStatusFromLoadedAsset();
-                            return;
-                        }
-
-                        updateSourceStatusFromLoadedAsset();
-
-                        if (!optimizedAsset || !lastOptimizedSettingsSignatureRef.current) {
-                            resetOptimizedStatus();
-                            return;
-                        }
-
-                        if (lastOptimizedSettingsSignatureRef.current === getSettingsSignature(settings)) {
-                            return;
-                        }
-
-                        setIsOptimizing(true);
-                        setStatus((current) => ({
-                            ...current,
-                            message: `Reloaded ${asset.primaryFileName}. Re-running optimization with updated settings...`,
-                        }));
-
-                        try {
-                            const result = await optimizeLoadedAsset(asset, settings);
-                            if (optimizedAsset) {
-                                URL.revokeObjectURL(optimizedAsset.url);
-                                if (optimizedAsset.previewUrl !== optimizedAsset.url) {
-                                    URL.revokeObjectURL(optimizedAsset.previewUrl);
-                                }
-                            }
-                            setOptimizedAsset({
-                                url: result.objectUrl,
-                                kind: result.kind,
-                                downloadFileName: result.downloadFileName,
-                                previewUrl: result.previewObjectUrl,
-                                previewKind: result.previewKind,
-                            });
-                            lastOptimizedSettingsSignatureRef.current = getSettingsSignature(settings);
-                            setStatus((current) => ({
-                                ...current,
-                                optimizedLabel: formatMegabytes(result.sizeBytes),
-                                optimizedCompression: result.compressionLabel,
-                                message:
-                                    asset.kind === "texture"
-                                        ? settings.textureExportMode === "image"
-                                            ? "Reload complete. Optimized texture image and preview plane updated for the current settings."
-                                            : "Reload complete. Optimized GLB plane updated for the current settings."
-                                        : "Reload complete. Optimized GLB updated for the current settings.",
-                            }));
-                        } catch (error) {
-                            setStatus((current) => ({
-                                ...current,
-                                message: error instanceof Error ? error.message : "Optimization failed after reload.",
-                            }));
-                        } finally {
-                            setIsOptimizing(false);
-                        }
-                    }}
-                    onSceneInfoChange={(info) => {
-                        setStatus((current) => ({
-                            ...current,
-                            sourceName: info.sourceLabel,
-                            message: info.message,
-                            optimizedLabel: optimizedAsset ? current.optimizedLabel : "Converted Size",
-                        }));
-                        updateSourceStatusFromLoadedAsset();
-                    }}
-                    onAnimationStateChange={(animationState) => {
-                        setAnimationState(animationState);
-                    }}
+                    onSourceAssetLoaded={handleSourceAssetLoaded}
+                    onSceneInfoChange={handleSceneInfoChange}
+                    onAnimationStateChange={handleAnimationStateChange}
                 />
             </main>
 
-            <footer className="footerBar">
+            <footer className={`footerBar${footerHidden ? " isHidden" : ""}`}>
                 <div className="footerCluster footerBrand">
                     <div className="brandTitle">New Sandbox</div>
                     <div className="brandMeta">{textureModeLabel}</div>

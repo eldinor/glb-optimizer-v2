@@ -96,6 +96,15 @@
     border-top: 1px solid rgba(15, 23, 42, 0.08);
     backdrop-filter: blur(14px);
     overflow-x: auto;
+    transition:
+        transform 180ms ease,
+        opacity 180ms ease;
+}
+
+.footerBar.isHidden {
+    transform: translateY(calc(100% + 8px));
+    opacity: 0;
+    pointer-events: none;
 }
 
 .footerCluster {
@@ -288,4 +297,5 @@
         width: calc(100vw - 32px);
         text-align: center;
     }
+
 }
