@@ -24,16 +24,20 @@ Already done:
 - generic source/output compression detection (`Draco`, `Meshopt`, `No Compression`)
 - unified reusable asset-features detection module
 - reusable animation controls with play/pause, scrubber, and group selection
+- texture-only input flow with generated plane preview
+- texture-only export choice between optimized image output and optimized GLB plane output
+- texture-only settings panel cleanup so scene-only controls are hidden when not relevant
 
 Still to finish:
 
 ## Core Asset Flow
-- Make texture-only inputs behave as intentionally as the original app
-
-## Viewer And Scene Features
-- Add material variants support for `KHR_materials_variants`
-- Add camera picker UI and camera switching
-- Restore custom environment file loading for dropped `.env`, `.hdr`, and `.dds`
+- Smoke test texture-only flows more thoroughly:
+  - `keep`
+  - resize-only
+  - `png` / `webp`
+  - `ktx2`
+  - image export
+  - GLB plane export
 
 ## Optimization Behavior
 - Verify parity for `EXT_mesh_gpu_instancing` export behavior
@@ -76,6 +80,9 @@ Still to finish:
 - Review which reusable modules should live in shared packages vs stay app-local
 
 ## Nice To Have
-- Add a stronger migration checklist for “must-have before repo split” vs “can wait until after repo split”
+- Add a stronger migration checklist for "must-have before repo split" vs "can wait until after repo split"
 - Add small regression checks for optimizer flow and compare flow
 - Revisit inspector loading strategy to reduce initial bundle size
+- Add material variants support for `KHR_materials_variants` if we decide it should come back into near-term scope
+- Add camera picker UI and camera switching if we decide they are needed again
+- Restore custom environment file loading for dropped `.env`, `.hdr`, and `.dds` if we decide it is needed again

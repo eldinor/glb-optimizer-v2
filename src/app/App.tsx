@@ -39,6 +39,10 @@ function getSettingsSignature(settings: unknown) {
     return JSON.stringify(settings);
 }
 
+function getTextureExportLabel(exportMode: "image" | "glb-plane") {
+    return exportMode === "image" ? "image" : "GLB plane";
+}
+
 export function App() {
     const { settings, setSettings, resetSettings } = usePersistentSettings();
     const [status, setStatus] = useState<AppStatus>(INITIAL_STATUS);
@@ -174,16 +178,16 @@ export function App() {
         }
 
         setIsOptimizing(true);
-            setStatus((current) => ({
-                ...current,
-                message: `${asset.kind === "texture" ? "Converting" : "Optimizing"} ${asset.primaryFileName}...`,
-                warning:
-                    asset.kind === "texture"
-                        ? settings.textureExportMode === "image"
-                            ? "Texture-only inputs are optimized through a generated plane scene, then exported as an image."
-                            : "Texture-only inputs are wrapped on a preview plane and exported as optimized `.glb` output."
-                        : "Optimization currently exports `.glb` output only.",
-            }));
+        setStatus((current) => ({
+            ...current,
+            message: `${asset.kind === "texture" ? "Converting" : "Optimizing"} ${asset.primaryFileName}...`,
+            warning:
+                asset.kind === "texture"
+                    ? settings.textureExportMode === "image"
+                        ? "Texture-only inputs are optimized through a generated plane scene. Download exports the image, while the compare preview stays scene-based."
+                        : "Texture-only inputs are wrapped on a preview plane and exported as optimized `.glb` output."
+                    : "Optimization currently exports `.glb` output only.",
+        }));
 
         try {
             const result = await optimizeLoadedAsset(asset, settings);
@@ -209,8 +213,8 @@ export function App() {
                 message:
                     asset.kind === "texture"
                         ? settings.textureExportMode === "image"
-                            ? "Texture optimization complete. The optimized image is ready to download, and the updated plane preview is shown on the right."
-                            : "Texture optimization complete. The optimized GLB preview is ready to download."
+                            ? "Texture optimization complete. The optimized image is ready to download, and the updated preview plane is shown on the right."
+                            : "Texture optimization complete. The optimized GLB plane is ready to download."
                         : "Optimization complete. The optimized GLB is ready to download.",
             }));
         } catch (error) {
@@ -236,6 +240,13 @@ export function App() {
         link.href = optimizedAsset.url;
         link.download = optimizedAsset.downloadFileName;
         link.click();
+        const activeAsset = viewerRef.current?.getLoadedAssetInfo();
+        if (activeAsset?.kind === "texture") {
+            setStatus((current) => ({
+                ...current,
+                message: `Downloaded optimized ${getTextureExportLabel(settings.textureExportMode)} output.`,
+            }));
+        }
     };
 
     const runScreenshotCompare = async () => {
@@ -254,6 +265,7 @@ export function App() {
                 return;
             }
 
+            const activeAsset = viewerRef.current?.getLoadedAssetInfo();
             setCompareState({
                 mismatchedPixels: result.mismatchedPixels,
                 errorPercentage: result.errorPercentage,
@@ -261,7 +273,10 @@ export function App() {
             });
             setStatus((current) => ({
                 ...current,
-                message: `Screenshot compare complete: ${result.mismatchedPixels} mismatched pixels, ${result.errorPercentage}% error.`,
+                message:
+                    activeAsset?.kind === "texture" && settings.textureExportMode === "image"
+                        ? `Preview compare complete: ${result.mismatchedPixels} mismatched pixels, ${result.errorPercentage}% error between the source plane and optimized preview plane.`
+                        : `Screenshot compare complete: ${result.mismatchedPixels} mismatched pixels, ${result.errorPercentage}% error.`,
             }));
         } catch (error) {
             setStatus((current) => ({
@@ -320,6 +335,7 @@ export function App() {
                         <SettingsPanel
                             settings={settings}
                             defaultSettings={DEFAULT_SETTINGS}
+                            activeAssetKind={viewerRef.current?.getLoadedAssetInfo()?.kind ?? null}
                             onSettingsChange={setSettings}
                             onExplainStage={(message) =>
                                 setStatus((current) => ({
@@ -346,7 +362,7 @@ export function App() {
                             <h3>Basic Optimization</h3>
                             <p>Dedup, Prune, Flatten, Join, Resample, Weld, Simplify, Quantize, Reorder, Meshopt, and KTX2 texture modes are available from Settings.</p>
                             <h3>Compare View</h3>
-                            <p>The left half shows the source scene. The right half shows the optimized GLB. Screenshot compare overlays the diff image on the optimized side.</p>
+                            <p>The left half shows the source scene. The right half shows the optimized preview scene. Screenshot compare overlays the diff image on the optimized side.</p>
                             <h3>Files</h3>
                             <p>Use Open or drag files onto the render area. `.glb` and `.gltf` are optimized to `.glb`. Standalone PNG, JPG, JPEG, and WEBP textures can be optimized through a generated plane and exported either as an image or as a GLB plane.</p>
                         </div>
@@ -421,8 +437,8 @@ export function App() {
                                 message:
                                     asset.kind === "texture"
                                         ? settings.textureExportMode === "image"
-                                            ? "Reload complete. Optimized texture image and plane preview updated for the current settings."
-                                            : "Reload complete. Optimized texture preview GLB updated for the current settings."
+                                            ? "Reload complete. Optimized texture image and preview plane updated for the current settings."
+                                            : "Reload complete. Optimized GLB plane updated for the current settings."
                                         : "Reload complete. Optimized GLB updated for the current settings.",
                             }));
                         } catch (error) {

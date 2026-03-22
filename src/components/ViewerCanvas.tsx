@@ -812,7 +812,7 @@ async function loadFilesIntoViewer(
             sourceLabel: getDisplayName(sceneFile ?? (textureFile as File)),
             message: sceneFile
                 ? "Scene loaded. Single-canvas compare mode is active with split viewports."
-                : "Texture loaded onto a preview plane. Optimization will reuse the same GLB pipeline as any other imported scene.",
+                : "Texture loaded onto a preview plane. Optimization will reuse the same scene pipeline as any other imported asset.",
         });
     } catch (error) {
         const message = error instanceof Error ? error.message : "Unknown loading error";
