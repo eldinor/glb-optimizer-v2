@@ -7,6 +7,7 @@ import {
     ArrowDownloadRegular,
     ArrowResetRegular,
     CubeCheckmarkRegular,
+    EditFilled,
     FolderOpenRegular,
     GridRegular,
     ImageMultipleRegular,
@@ -56,8 +57,11 @@ function formatMegabytes(sizeBytes: number): string {
     return `${(sizeBytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
-function getSettingsSignature(settings: unknown) {
-    return JSON.stringify(settings);
+function getOptimizationSignature(settings: unknown, compressionPreference: CompressionPreference) {
+    return JSON.stringify({
+        settings,
+        compressionPreference,
+    });
 }
 
 function getTextureExportLabel(exportMode: "image" | "glb-plane") {
@@ -425,7 +429,7 @@ export function App() {
                 return;
             }
 
-            if (lastOptimizedSettingsSignatureRef.current === getSettingsSignature(settings)) {
+            if (lastOptimizedSettingsSignatureRef.current === getOptimizationSignature(settings, compressionPreference)) {
                 return;
             }
 
@@ -467,7 +471,7 @@ export function App() {
                     setEditedDownloadFileName(result.downloadFileName);
                     setDownloadFileNameDraft(result.downloadFileName);
                     setIsEditingDownloadFileName(false);
-                    lastOptimizedSettingsSignatureRef.current = getSettingsSignature(settings);
+                    lastOptimizedSettingsSignatureRef.current = getOptimizationSignature(settings, compressionPreference);
                     setStatus((current) => ({
                         ...current,
                         optimizedLabel: formatMegabytes(result.sizeBytes),
@@ -567,7 +571,7 @@ export function App() {
                 setEditedDownloadFileName(result.downloadFileName);
                 setDownloadFileNameDraft(result.downloadFileName);
                 setIsEditingDownloadFileName(false);
-                lastOptimizedSettingsSignatureRef.current = getSettingsSignature(settings);
+                lastOptimizedSettingsSignatureRef.current = getOptimizationSignature(settings, compressionPreference);
                 setStatus((current) => ({
                     ...current,
                     optimizedLabel: formatMegabytes(result.sizeBytes),
@@ -735,7 +739,7 @@ export function App() {
                                                     setIsEditingDownloadFileName(true);
                                                 }}
                                             >
-                                                ✎
+                                                <EditFilled />
                                             </button>
                                         </>
                                     )}
@@ -1021,3 +1025,4 @@ export function App() {
         </FluentProvider>
     );
 }
+
