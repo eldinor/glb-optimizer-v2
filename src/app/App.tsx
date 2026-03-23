@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AppStatus, LoadedAssetKind, ScreenshotCompareState } from "./model";
 import { Button, FluentProvider, webLightTheme } from "@fluentui/react-components";
+import type { AssetFeatures } from "../features/assetFeatures/detectAssetFeatures";
 import {
     ArrowClockwiseRegular,
     ArrowDownloadRegular,
@@ -28,6 +29,9 @@ import { optimizeLoadedAsset } from "./optimizer";
 import { detectAssetFeaturesFromLoadedAsset } from "../features/assetFeatures/detectAssetFeatures";
 import { extractGltfAssetInfoFromLoadedAsset, type GltfAssetInfo } from "../features/assetFeatures/extractGltfAssetInfo";
 import "./App.css";
+
+type CompressionPreference = "uncompress" | "keep-same";
+const USER_SETTINGS_STORAGE_KEY = "newsandbox.optimizer.user-settings";
 
 const INITIAL_STATUS: AppStatus = {
     sourceName: "Awaiting file import",
@@ -60,6 +64,88 @@ function getTextureExportLabel(exportMode: "image" | "glb-plane") {
     return exportMode === "image" ? "image" : "GLB plane";
 }
 
+function getExpectedDownloadFileName(
+    asset: { kind: LoadedAssetKind; primaryFileName: string },
+    settings: typeof DEFAULT_SETTINGS
+) {
+    const baseName = asset.primaryFileName.replace(/\.[^/.]+$/, "");
+    if (asset.kind === "texture" && settings.textureExportMode === "image") {
+        const extension =
+            settings.textureMode === "png"
+                ? ".png"
+                : settings.textureMode === "webp"
+                  ? ".webp"
+                  : settings.textureMode === "keep"
+                    ? asset.primaryFileName.slice(asset.primaryFileName.lastIndexOf(".")) || ".bin"
+                    : ".ktx2";
+        return `${baseName}-opt${extension}`;
+    }
+
+    return `${baseName}-opt.glb`;
+}
+
+function readCompressionPreference(): CompressionPreference {
+    if (typeof window === "undefined") {
+        return "uncompress";
+    }
+
+    const rawValue = window.localStorage.getItem(USER_SETTINGS_STORAGE_KEY);
+    return rawValue === "keep-same" ? "keep-same" : "uncompress";
+}
+
+function getCompressionConflictWarning(
+    settings: typeof DEFAULT_SETTINGS,
+    compressionPreference: CompressionPreference,
+    sourceAssetFeatures: AssetFeatures | null,
+    activeAssetKind: LoadedAssetKind | null
+) {
+    if (compressionPreference !== "keep-same" || activeAssetKind !== "scene" || !sourceAssetFeatures) {
+        return "";
+    }
+
+    const userSelectedDraco = settings.draco;
+    const userSelectedMeshopt = settings.meshopt;
+    const sourceHasDraco = sourceAssetFeatures.hasDraco;
+    const sourceHasMeshopt = sourceAssetFeatures.hasMeshopt;
+    const effectiveDraco = settings.draco || (!settings.meshopt && sourceAssetFeatures.hasDraco);
+    const effectiveMeshopt = settings.meshopt || (!settings.draco && sourceAssetFeatures.hasMeshopt);
+
+    if ((userSelectedDraco && sourceHasMeshopt && !sourceHasDraco) || (userSelectedMeshopt && sourceHasDraco && !sourceHasMeshopt)) {
+        return "Warning: the source file uses a different compression method. Your chosen compression setting is being used instead of preserving the original compression.";
+    }
+
+    if (!effectiveDraco || !effectiveMeshopt) {
+        return "";
+    }
+
+    if (userSelectedDraco || userSelectedMeshopt) {
+        return "Warning: the source file uses a different compression method. Your chosen compression setting is being used instead of preserving the original compression.";
+    }
+
+    return "Warning: both Draco and Meshopt compression are active for this asset.";
+}
+
+function getEffectiveOptimizationSettings(
+    settings: typeof DEFAULT_SETTINGS,
+    compressionPreference: CompressionPreference,
+    sourceAssetFeatures: AssetFeatures | null,
+    activeAssetKind: LoadedAssetKind | null
+) {
+    if (compressionPreference !== "keep-same" || activeAssetKind !== "scene" || !sourceAssetFeatures) {
+        return settings;
+    }
+
+    if (settings.draco || settings.meshopt) {
+        return settings;
+    }
+
+    return {
+        ...settings,
+        draco: sourceAssetFeatures.hasDraco,
+        meshopt: sourceAssetFeatures.hasMeshopt,
+    };
+}
+
 export function App() {
     const { settings, setSettings, resetSettings } = usePersistentSettings();
     const [status, setStatus] = useState<AppStatus>(INITIAL_STATUS);
@@ -83,7 +169,10 @@ export function App() {
     const [userSettingsOpen, setUserSettingsOpen] = useState(false);
     const [footerHidden, setFooterHidden] = useState(false);
     const [sourceAssetInfo, setSourceAssetInfo] = useState<GltfAssetInfo | null>(null);
+    const [sourceAssetFeatures, setSourceAssetFeatures] = useState<AssetFeatures | null>(null);
     const [activeAssetKind, setActiveAssetKind] = useState<LoadedAssetKind | null>(null);
+    const [loadedPrimaryFileName, setLoadedPrimaryFileName] = useState("");
+    const [compressionPreference, setCompressionPreference] = useState<CompressionPreference>(readCompressionPreference);
     const [editedDownloadFileName, setEditedDownloadFileName] = useState("");
     const [downloadFileNameDraft, setDownloadFileNameDraft] = useState("");
     const [isEditingDownloadFileName, setIsEditingDownloadFileName] = useState(false);
@@ -120,7 +209,26 @@ export function App() {
         return ENVIRONMENT_PRESETS.find((preset) => preset.id === selectedEnvironmentId) ?? ENVIRONMENT_PRESETS[0];
     }, [selectedEnvironmentId]);
 
-    const resolvedDownloadFileName = editedDownloadFileName.trim() || optimizedAsset?.downloadFileName || "";
+    const expectedDownloadFileNameFromLoadedAsset = useMemo(() => {
+        if (!loadedPrimaryFileName || !activeAssetKind) {
+            return "";
+        }
+
+        return getExpectedDownloadFileName(
+            {
+                kind: activeAssetKind,
+                primaryFileName: loadedPrimaryFileName,
+            },
+            settings
+        );
+    }, [loadedPrimaryFileName, activeAssetKind, settings]);
+
+    const resolvedDownloadFileName = editedDownloadFileName.trim() || optimizedAsset?.downloadFileName || expectedDownloadFileNameFromLoadedAsset;
+    const hasRealOptimizedOutput = Boolean(editedDownloadFileName.trim() || optimizedAsset?.downloadFileName);
+    const compressionConflictWarning = useMemo(
+        () => getCompressionConflictWarning(settings, compressionPreference, sourceAssetFeatures, activeAssetKind),
+        [settings, compressionPreference, sourceAssetFeatures, activeAssetKind]
+    );
 
     useEffect(() => {
         return () => {
@@ -143,6 +251,10 @@ export function App() {
         downloadFileNameInputRef.current?.focus();
         downloadFileNameInputRef.current?.select();
     }, [isEditingDownloadFileName]);
+
+    useEffect(() => {
+        window.localStorage.setItem(USER_SETTINGS_STORAGE_KEY, compressionPreference);
+    }, [compressionPreference]);
 
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
@@ -184,12 +296,15 @@ export function App() {
 
         const totalSizeBytes = asset.files.reduce((sum, file) => sum + file.size, 0);
         void detectAssetFeaturesFromLoadedAsset(asset).then((features) =>
-            setStatus((current) => ({
-                ...current,
-                sourceName: asset.primaryFileName,
-                sourceLabel: formatMegabytes(totalSizeBytes),
-                sourceCompression: features.headerLabel,
-            }))
+            {
+                setSourceAssetFeatures(features);
+                setStatus((current) => ({
+                    ...current,
+                    sourceName: asset.primaryFileName,
+                    sourceLabel: formatMegabytes(totalSizeBytes),
+                    sourceCompression: features.headerLabel,
+                }));
+            }
         );
     };
 
@@ -247,14 +362,32 @@ export function App() {
         []
     );
 
+    const getOptimizationSourceFeatures = useCallback(async (asset: { kind: LoadedAssetKind; primaryFileName: string; files: File[] }) => {
+        if (asset.kind !== "scene") {
+            return null;
+        }
+
+        const features = await detectAssetFeaturesFromLoadedAsset(asset);
+        setSourceAssetFeatures(features);
+        return features;
+    }, []);
+
     const handleSourceAssetLoaded = useCallback(
         async (asset: { kind: LoadedAssetKind; primaryFileName: string; files: File[] }, reason: "load" | "reload") => {
             const requestId = ++sourceAssetInfoRequestIdRef.current;
             setSourceSceneVersion((current) => current + 1);
             setCompareState(null);
             setActiveAssetKind(asset.kind);
+            setLoadedPrimaryFileName(asset.primaryFileName);
 
             if (asset.kind === "scene") {
+                void detectAssetFeaturesFromLoadedAsset(asset).then((features) => {
+                    if (sourceAssetInfoRequestIdRef.current !== requestId) {
+                        return;
+                    }
+
+                    setSourceAssetFeatures(features);
+                });
                 void extractGltfAssetInfoFromLoadedAsset(asset).then((info) => {
                     if (sourceAssetInfoRequestIdRef.current !== requestId) {
                         return;
@@ -264,6 +397,7 @@ export function App() {
                 });
             } else {
                 setSourceAssetInfo(null);
+                setSourceAssetFeatures(null);
             }
 
             if (reason === "load") {
@@ -296,15 +430,27 @@ export function App() {
             }
 
             setIsOptimizing(true);
+            if (!editedDownloadFileName.trim()) {
+                setEditedDownloadFileName(getExpectedDownloadFileName(asset, settings));
+            }
             setStatus((current) => ({
                 ...current,
                 message: `Reloaded ${asset.primaryFileName}. Re-running optimization with updated settings...`,
+                warning: compressionConflictWarning,
             }));
 
             try {
+                const optimizationSourceFeatures = await getOptimizationSourceFeatures(asset);
                 const renderingSuspension = viewerRef.current?.suspendRendering();
                 try {
-                    const result = await optimizeLoadedAsset(asset, settings);
+                    const result = await optimizeLoadedAsset(
+                        asset,
+                        getEffectiveOptimizationSettings(settings, compressionPreference, optimizationSourceFeatures, asset.kind)
+                    );
+                    setStatus((current) => ({
+                        ...current,
+                        message: `Optimization output generated for ${result.downloadFileName}. Finalizing preview and download state...`,
+                    }));
                     if (optimizedAsset) {
                         URL.revokeObjectURL(optimizedAsset.url);
                         if (optimizedAsset.previewUrl !== optimizedAsset.url) {
@@ -339,13 +485,14 @@ export function App() {
             } catch (error) {
                 setStatus((current) => ({
                     ...current,
-                    message: error instanceof Error ? error.message : "Optimization failed after reload.",
+                    message: error instanceof Error ? `Optimization failed after reload: ${error.message}` : "Optimization failed after reload.",
+                    warning: "No optimized output was created. Check the error text above for the exact failure.",
                 }));
             } finally {
                 setIsOptimizing(false);
             }
         },
-        [optimizedAsset, settings]
+        [optimizedAsset, settings, compressionPreference, compressionConflictWarning, getOptimizationSourceFeatures]
     );
 
     const handleSceneInfoChange = useCallback(
@@ -376,6 +523,10 @@ export function App() {
         }
 
         setIsOptimizing(true);
+        const expectedDownloadFileName = getExpectedDownloadFileName(asset, settings);
+        if (!editedDownloadFileName.trim()) {
+            setEditedDownloadFileName(expectedDownloadFileName);
+        }
         setStatus((current) => ({
             ...current,
             message: `${asset.kind === "texture" ? "Converting" : "Optimizing"} ${asset.primaryFileName}...`,
@@ -384,13 +535,21 @@ export function App() {
                     ? settings.textureExportMode === "image"
                         ? "Texture-only inputs are optimized through a generated plane scene. Download exports the image, while the compare preview stays scene-based."
                         : "Texture-only inputs are wrapped on a preview plane and exported as optimized `.glb` output."
-                    : "Optimization currently exports `.glb` output only.",
+                    : compressionConflictWarning || "Optimization currently exports `.glb` output only.",
         }));
 
         try {
+            const optimizationSourceFeatures = await getOptimizationSourceFeatures(asset);
             const renderingSuspension = viewerRef.current?.suspendRendering();
             try {
-                const result = await optimizeLoadedAsset(asset, settings);
+                const result = await optimizeLoadedAsset(
+                    asset,
+                    getEffectiveOptimizationSettings(settings, compressionPreference, optimizationSourceFeatures, asset.kind)
+                );
+                setStatus((current) => ({
+                    ...current,
+                    message: `Optimization output generated for ${result.downloadFileName}. Finalizing preview and download state...`,
+                }));
                 if (optimizedAsset) {
                     URL.revokeObjectURL(optimizedAsset.url);
                     if (optimizedAsset.previewUrl !== optimizedAsset.url) {
@@ -426,7 +585,8 @@ export function App() {
         } catch (error) {
             setStatus((current) => ({
                 ...current,
-                message: error instanceof Error ? error.message : "Optimization failed.",
+                message: error instanceof Error ? `Optimization failed: ${error.message}` : "Optimization failed.",
+                warning: "No optimized output was created. Check the error text above for the exact failure.",
             }));
         } finally {
             setIsOptimizing(false);
@@ -532,7 +692,7 @@ export function App() {
                         <div className="topPlaceholder">
                             <span className="topPlaceholderLabel">Converted</span>
                             <strong>{status.optimizedLabel}</strong>
-                            {optimizedAsset ? (
+                            {resolvedDownloadFileName ? (
                                 <span className="topPlaceholderSecondary topEditableFileName">
                                     {isEditingDownloadFileName ? (
                                         <input
@@ -543,14 +703,14 @@ export function App() {
                                             aria-label="Optimized file name"
                                             onChange={(event) => setDownloadFileNameDraft(event.target.value)}
                                             onBlur={() => {
-                                                const nextFileName = downloadFileNameDraft.trim() || optimizedAsset.downloadFileName;
+                                                const nextFileName = downloadFileNameDraft.trim() || resolvedDownloadFileName;
                                                 setEditedDownloadFileName(nextFileName);
                                                 setDownloadFileNameDraft(nextFileName);
                                                 setIsEditingDownloadFileName(false);
                                             }}
                                             onKeyDown={(event) => {
                                                 if (event.key === "Enter") {
-                                                    const nextFileName = downloadFileNameDraft.trim() || optimizedAsset.downloadFileName;
+                                                    const nextFileName = downloadFileNameDraft.trim() || resolvedDownloadFileName;
                                                     setEditedDownloadFileName(nextFileName);
                                                     setDownloadFileNameDraft(nextFileName);
                                                     setIsEditingDownloadFileName(false);
@@ -590,68 +750,8 @@ export function App() {
                         </div>
                         <div className="topPlaceholder">
                             <span className="topPlaceholderLabel">Status</span>
-                            <strong>{optimizedAsset ? "Ready" : "Waiting"}</strong>
+                            <strong>{hasRealOptimizedOutput ? "Ready" : "Waiting"}</strong>
                         </div>
-                    </div>
-                </div>
-                <div className="topFileNameStack">
-                    <div className="topFileNameLine">
-                        <span className="topFileNameLabel">Source file</span>
-                        <span className="topFileNameValue">{status.sourceName}</span>
-                    </div>
-                    <div className="topFileNameLine">
-                        <span className="topFileNameLabel">Optimized file</span>
-                        {optimizedAsset ? (
-                            <span className="topEditableFileName">
-                                {isEditingDownloadFileName ? (
-                                    <input
-                                        ref={downloadFileNameInputRef}
-                                        className="topFileNameInput"
-                                        type="text"
-                                        value={downloadFileNameDraft}
-                                        aria-label="Optimized file name"
-                                        onChange={(event) => setDownloadFileNameDraft(event.target.value)}
-                                        onBlur={() => {
-                                            const nextFileName = downloadFileNameDraft.trim() || optimizedAsset.downloadFileName;
-                                            setEditedDownloadFileName(nextFileName);
-                                            setDownloadFileNameDraft(nextFileName);
-                                            setIsEditingDownloadFileName(false);
-                                        }}
-                                        onKeyDown={(event) => {
-                                            if (event.key === "Enter") {
-                                                const nextFileName = downloadFileNameDraft.trim() || optimizedAsset.downloadFileName;
-                                                setEditedDownloadFileName(nextFileName);
-                                                setDownloadFileNameDraft(nextFileName);
-                                                setIsEditingDownloadFileName(false);
-                                            }
-                                            if (event.key === "Escape") {
-                                                setDownloadFileNameDraft(resolvedDownloadFileName);
-                                                setEditedDownloadFileName(resolvedDownloadFileName);
-                                                setIsEditingDownloadFileName(false);
-                                            }
-                                        }}
-                                    />
-                                ) : (
-                                    <>
-                                        <span className="topFileNameValue">{resolvedDownloadFileName}</span>
-                                        <button
-                                            className="topEditFileNameButton"
-                                            type="button"
-                                            aria-label="Edit optimized file name"
-                                            title="Edit optimized file name"
-                                            onClick={() => {
-                                                setDownloadFileNameDraft(resolvedDownloadFileName);
-                                                setIsEditingDownloadFileName(true);
-                                            }}
-                                        >
-                                            {"\u270E"}
-                                        </button>
-                                    </>
-                                )}
-                            </span>
-                        ) : (
-                            <span className="topFileNameValue">Awaiting optimized output</span>
-                        )}
                     </div>
                 </div>
             </header>
@@ -725,6 +825,21 @@ export function App() {
                         </div>
                         <div className="helpContent">
                             <p>Manage app-level preferences and restore the optimizer defaults from here.</p>
+                            <label className="userSettingsField">
+                                <span className="userSettingsLabel">Compression Handling</span>
+                                <select
+                                    className="userSettingsSelect"
+                                    value={compressionPreference}
+                                    onChange={(event) => setCompressionPreference(event.target.value as CompressionPreference)}
+                                >
+                                    <option value="uncompress">Uncompress</option>
+                                    <option value="keep-same">Keep the same compression</option>
+                                </select>
+                            </label>
+                            <p className="userSettingsHint">
+                                When enabled, original Draco or Meshopt compression is reapplied with default settings only if you have not already chosen another compression method.
+                            </p>
+                            {compressionConflictWarning ? <p className="userSettingsWarning">{compressionConflictWarning}</p> : null}
                             <Button
                                 appearance="secondary"
                                 icon={<ArrowResetRegular />}

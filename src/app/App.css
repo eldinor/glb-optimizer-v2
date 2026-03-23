@@ -92,37 +92,6 @@
     min-width: 0;
 }
 
-.topFileNameStack {
-    display: none;
-}
-
-.topFileNameLine {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    min-width: 0;
-    padding: 4px 10px;
-    background: rgba(255, 255, 255, 0.03);
-    color: #fff;
-}
-
-.topFileNameLabel {
-    flex: 0 0 auto;
-    color: rgba(255, 255, 255, 0.72);
-    font-size: 0.62rem;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-}
-
-.topFileNameValue {
-    flex: 1 1 auto;
-    min-width: 0;
-    overflow: visible;
-    text-overflow: clip;
-    white-space: normal;
-    word-break: break-word;
-}
-
 .topEditableFileNameText {
     overflow: hidden;
     text-overflow: ellipsis;
@@ -462,6 +431,42 @@
     padding: 16px;
     color: rgba(255, 255, 255, 0.9);
     line-height: 1.5;
+}
+
+.userSettingsField {
+    display: grid;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.userSettingsLabel {
+    color: #fff;
+    font-size: 0.82rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.userSettingsSelect {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.06);
+    color: #fff;
+    font: inherit;
+}
+
+.userSettingsSelect option {
+    color: #fff;
+    background: rgb(32, 25, 54);
+}
+
+.userSettingsHint,
+.userSettingsWarning {
+    margin: 0 0 12px;
+}
+
+.userSettingsWarning {
+    color: #ffd7d7;
 }
 
 .helpContent h3 {
