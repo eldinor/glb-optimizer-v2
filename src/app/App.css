@@ -27,86 +27,16 @@
     min-height: 42px;
     background: rgb(32, 25, 54);
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.topBarActions {
-    display: flex;
-    align-items: stretch;
-    gap: 0;
-    margin-left: auto;
     pointer-events: auto;
-}
-
-.topBarSelect {
-    display: flex;
-    align-items: stretch;
-    height: 100%;
-    background: rgb(32, 25, 54);
-    border-left: 1px solid rgba(255, 255, 255, 0.08);
-    border-right: 1px solid rgba(255, 255, 255, 0.08);
-    color: #fff;
-}
-
-.topBarSelectIcon {
-    align-self: center;
-    flex: 0 0 auto;
-    margin-left: 10px;
-    color: rgba(255, 255, 255, 0.82);
-    font-size: 20px;
-}
-
-.topBarSelectInput {
-    min-width: 148px;
-    height: 100%;
-    padding: 0 32px 0 8px;
-    background: rgb(32, 25, 54);
-    color: #fff;
-    border: 0;
-    box-shadow: none;
-    appearance: none;
-    font: inherit;
-    cursor: pointer;
-}
-
-.topBarSelectInput:hover,
-.topBarSelectInput:focus,
-.topBarSelectInput:focus-visible {
-    background: rgb(41, 6, 156);
-    color: #fff;
-    outline: none;
-}
-
-.topBarSelectInput option {
-    color: #fff;
-    background: rgb(32, 25, 54);
-}
-
-.topBarIconButton {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 42px;
-    height: 100%;
-    padding: 0;
-    border: 0;
-    background: transparent;
-    color: #fff;
-    cursor: pointer;
-    font: inherit;
-}
-
-.topBarIconButton:hover {
-    background: rgba(255, 255, 255, 0.08);
-}
-
-.topBarIcon {
-    font-size: 24px;
 }
 
 .topColumn {
     flex: 1 1 50%;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1px;
     min-width: 0;
-    padding: 8px 14px;
+    padding: 0;
     color: #fff;
 }
 
@@ -117,13 +47,114 @@
     white-space: nowrap;
 }
 
-.topMetricLabel {
+.topPlaceholder {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 0;
+    padding: 4px 10px;
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.topPlaceholder > .topPlaceholderSecondary {
     display: block;
-    margin-bottom: 6px;
+}
+
+.topPlaceholderLabel {
+    display: block;
+    margin-bottom: 2px;
     color: rgba(255, 255, 255, 0.72);
-    font-size: 0.74rem;
+    font-size: 0.62rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
+}
+
+.topColumn strong {
+    font-size: 0.84rem;
+    line-height: 1.15;
+}
+
+.topPlaceholderSecondary {
+    display: block;
+    overflow: hidden;
+    margin-top: 2px;
+    color: rgba(255, 255, 255, 0.78);
+    font-size: 0.68rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.topEditableFileName {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.topFileNameStack {
+    display: none;
+}
+
+.topFileNameLine {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    min-width: 0;
+    padding: 4px 10px;
+    background: rgba(255, 255, 255, 0.03);
+    color: #fff;
+}
+
+.topFileNameLabel {
+    flex: 0 0 auto;
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 0.62rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.topFileNameValue {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    word-break: break-word;
+}
+
+.topEditableFileNameText {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.topEditFileNameButton {
+    flex: 0 0 auto;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.78);
+    cursor: pointer;
+    font: inherit;
+    font-size: 0;
+    line-height: 1;
+}
+
+.topEditFileNameButton::before {
+    content: "\270E";
+    font-size: 0.75rem;
+}
+
+.topFileNameInput {
+    width: 100%;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #fff;
+    font: inherit;
+    outline: none;
 }
 
 .topStatusStack {
@@ -178,7 +209,8 @@
     right: 0;
     bottom: 0;
     z-index: 10;
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     align-items: stretch;
     gap: 14px;
     min-height: 70px;
@@ -205,8 +237,38 @@
 }
 
 .footerBrand {
-    margin-right: auto;
+    align-self: center;
     padding-right: 10px;
+}
+
+.footerCenterZone {
+    position: relative;
+    display: flex;
+    align-items: stretch;
+    justify-self: center;
+    width: max-content;
+}
+
+.footerMainActions {
+    align-items: stretch;
+    padding: 6px;
+    background: rgba(255, 255, 255, 0.06);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.footerViewerActions {
+    position: absolute;
+    top: 0;
+    left: calc(100% + 40px);
+    align-items: stretch;
+    min-height: 100%;
+    padding: 6px;
+    background: rgba(255, 255, 255, 0.06);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.footerSecondaryActions {
+    justify-self: end;
 }
 
 .brandTitle {
@@ -261,6 +323,46 @@
 
 .footerPrimary {
     font-weight: 600;
+}
+
+.footerEnvironmentControl {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 100%;
+    padding: 0 12px;
+    color: #fff;
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.footerEnvironmentIcon {
+    flex: 0 0 auto;
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 20px;
+}
+
+.footerEnvironmentSelect {
+    min-width: 150px;
+    height: 100%;
+    padding: 0 28px 0 0;
+    background: transparent;
+    color: #fff;
+    border: 0;
+    box-shadow: none;
+    appearance: none;
+    font: inherit;
+    cursor: pointer;
+}
+
+.footerEnvironmentSelect:hover,
+.footerEnvironmentSelect:focus,
+.footerEnvironmentSelect:focus-visible {
+    outline: none;
+}
+
+.footerEnvironmentSelect option {
+    color: #fff;
+    background: rgb(32, 25, 54);
 }
 
 .footerButton:hover {
@@ -382,13 +484,32 @@
 
 @media (max-width: 1080px) {
     .footerBar {
-        flex-wrap: wrap;
-        justify-content: flex-start;
+        grid-template-columns: 1fr;
+        justify-items: stretch;
     }
 
     .footerBrand {
         width: 100%;
-        margin-right: 0;
+        padding-right: 0;
+    }
+
+    .footerCenterZone,
+    .footerMainActions,
+    .footerViewerActions,
+    .footerSecondaryActions {
+        justify-self: start;
+    }
+
+    .footerCenterZone {
+        position: static;
+        width: auto;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+    }
+
+    .footerViewerActions {
+        position: static;
     }
 }
 
@@ -397,13 +518,8 @@
         flex-direction: column;
     }
 
-    .topBarActions {
-        justify-content: flex-end;
-        min-height: 42px;
-    }
-
-    .topBarSelect .fui-Select {
-        min-width: 120px;
+    .topColumn {
+        grid-template-columns: 1fr;
     }
 
     .leftRail {

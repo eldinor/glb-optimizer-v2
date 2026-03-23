@@ -84,8 +84,12 @@ export function App() {
     const [footerHidden, setFooterHidden] = useState(false);
     const [sourceAssetInfo, setSourceAssetInfo] = useState<GltfAssetInfo | null>(null);
     const [activeAssetKind, setActiveAssetKind] = useState<LoadedAssetKind | null>(null);
+    const [editedDownloadFileName, setEditedDownloadFileName] = useState("");
+    const [downloadFileNameDraft, setDownloadFileNameDraft] = useState("");
+    const [isEditingDownloadFileName, setIsEditingDownloadFileName] = useState(false);
     const viewerRef = useRef<ViewerCanvasHandle | null>(null);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
+    const downloadFileNameInputRef = useRef<HTMLInputElement | null>(null);
     const lastOptimizedSettingsSignatureRef = useRef<string | null>(null);
     const sourceAssetInfoRequestIdRef = useRef(0);
 
@@ -116,6 +120,8 @@ export function App() {
         return ENVIRONMENT_PRESETS.find((preset) => preset.id === selectedEnvironmentId) ?? ENVIRONMENT_PRESETS[0];
     }, [selectedEnvironmentId]);
 
+    const resolvedDownloadFileName = editedDownloadFileName.trim() || optimizedAsset?.downloadFileName || "";
+
     useEffect(() => {
         return () => {
             if (!optimizedAsset) {
@@ -128,6 +134,15 @@ export function App() {
             }
         };
     }, [optimizedAsset]);
+
+    useEffect(() => {
+        if (!isEditingDownloadFileName) {
+            return;
+        }
+
+        downloadFileNameInputRef.current?.focus();
+        downloadFileNameInputRef.current?.select();
+    }, [isEditingDownloadFileName]);
 
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
@@ -259,6 +274,9 @@ export function App() {
                     }
                     setOptimizedAsset(null);
                 }
+                setEditedDownloadFileName("");
+                setDownloadFileNameDraft("");
+                setIsEditingDownloadFileName(false);
                 lastOptimizedSettingsSignatureRef.current = null;
                 setAnimationState(EMPTY_ANIMATION_STATE);
                 resetOptimizedStatus();
@@ -300,6 +318,9 @@ export function App() {
                         previewUrl: result.previewObjectUrl,
                         previewKind: result.previewKind,
                     });
+                    setEditedDownloadFileName(result.downloadFileName);
+                    setDownloadFileNameDraft(result.downloadFileName);
+                    setIsEditingDownloadFileName(false);
                     lastOptimizedSettingsSignatureRef.current = getSettingsSignature(settings);
                     setStatus((current) => ({
                         ...current,
@@ -384,6 +405,9 @@ export function App() {
                     previewUrl: result.previewObjectUrl,
                     previewKind: result.previewKind,
                 });
+                setEditedDownloadFileName(result.downloadFileName);
+                setDownloadFileNameDraft(result.downloadFileName);
+                setIsEditingDownloadFileName(false);
                 lastOptimizedSettingsSignatureRef.current = getSettingsSignature(settings);
                 setStatus((current) => ({
                     ...current,
@@ -420,7 +444,7 @@ export function App() {
 
         const link = document.createElement("a");
         link.href = optimizedAsset.url;
-        link.download = optimizedAsset.downloadFileName;
+        link.download = resolvedDownloadFileName;
         link.click();
         const activeAsset = viewerRef.current?.getLoadedAssetInfo();
         if (activeAsset?.kind === "texture") {
@@ -490,60 +514,144 @@ export function App() {
             <header className="topBar">
                 <div className="topBarRow">
                     <div className="topColumn">
-                        <span className="topMetricLabel">Original Size</span>
-                        <strong>{status.sourceLabel}</strong>
-                        <span className="topMetricLabel">
-                            {status.sourceName} | {status.sourceCompression}
-                        </span>
+                        <div className="topPlaceholder">
+                            <span className="topPlaceholderLabel">Original</span>
+                            <strong>{status.sourceLabel}</strong>
+                            <span className="topPlaceholderSecondary">{status.sourceName}</span>
+                        </div>
+                        <div className="topPlaceholder">
+                            <span className="topPlaceholderLabel">Compression</span>
+                            <strong>{status.sourceCompression}</strong>
+                        </div>
+                        <div className="topPlaceholder">
+                            <span className="topPlaceholderLabel">Source</span>
+                            <strong>{activeAssetKind === "texture" ? "Texture" : "GLB"}</strong>
+                        </div>
                     </div>
                     <div className="topColumn">
-                        <span className="topMetricLabel">Converted Size</span>
-                        <strong>{status.optimizedLabel}</strong>
-                        <span className="topMetricLabel">{status.optimizedCompression}</span>
+                        <div className="topPlaceholder">
+                            <span className="topPlaceholderLabel">Converted</span>
+                            <strong>{status.optimizedLabel}</strong>
+                            {optimizedAsset ? (
+                                <span className="topPlaceholderSecondary topEditableFileName">
+                                    {isEditingDownloadFileName ? (
+                                        <input
+                                            ref={downloadFileNameInputRef}
+                                            className="topFileNameInput"
+                                            type="text"
+                                            value={downloadFileNameDraft}
+                                            aria-label="Optimized file name"
+                                            onChange={(event) => setDownloadFileNameDraft(event.target.value)}
+                                            onBlur={() => {
+                                                const nextFileName = downloadFileNameDraft.trim() || optimizedAsset.downloadFileName;
+                                                setEditedDownloadFileName(nextFileName);
+                                                setDownloadFileNameDraft(nextFileName);
+                                                setIsEditingDownloadFileName(false);
+                                            }}
+                                            onKeyDown={(event) => {
+                                                if (event.key === "Enter") {
+                                                    const nextFileName = downloadFileNameDraft.trim() || optimizedAsset.downloadFileName;
+                                                    setEditedDownloadFileName(nextFileName);
+                                                    setDownloadFileNameDraft(nextFileName);
+                                                    setIsEditingDownloadFileName(false);
+                                                }
+                                                if (event.key === "Escape") {
+                                                    setDownloadFileNameDraft(resolvedDownloadFileName);
+                                                    setEditedDownloadFileName(resolvedDownloadFileName);
+                                                    setIsEditingDownloadFileName(false);
+                                                }
+                                            }}
+                                        />
+                                    ) : (
+                                        <>
+                                            <span className="topEditableFileNameText">{resolvedDownloadFileName}</span>
+                                            <button
+                                                className="topEditFileNameButton"
+                                                type="button"
+                                                aria-label="Edit optimized file name"
+                                                title="Edit optimized file name"
+                                                onClick={() => {
+                                                    setDownloadFileNameDraft(resolvedDownloadFileName);
+                                                    setIsEditingDownloadFileName(true);
+                                                }}
+                                            >
+                                                ✎
+                                            </button>
+                                        </>
+                                    )}
+                                </span>
+                            ) : (
+                                <span className="topPlaceholderSecondary">Awaiting optimized output</span>
+                            )}
+                        </div>
+                        <div className="topPlaceholder">
+                            <span className="topPlaceholderLabel">Compression</span>
+                            <strong>{status.optimizedCompression}</strong>
+                        </div>
+                        <div className="topPlaceholder">
+                            <span className="topPlaceholderLabel">Status</span>
+                            <strong>{optimizedAsset ? "Ready" : "Waiting"}</strong>
+                        </div>
                     </div>
-                    <div className="topBarActions">
-                        <label className="topBarSelect" title="HDR environment">
-                            <WeatherSunnyHighRegular className="topBarSelectIcon" title="HDR environment" />
-                            <select
-                                className="topBarSelectInput"
-                                value={selectedEnvironmentId}
-                                aria-label="Environment"
-                                title="HDR environment"
-                                onChange={(event) => {
-                                    const nextId = event.target.value;
-                                    setSelectedEnvironmentId(nextId);
-                                    const nextPreset = ENVIRONMENT_PRESETS.find((preset) => preset.id === nextId);
-                                    setStatus((current) => ({
-                                        ...current,
-                                        message: `Environment switched to ${nextPreset?.label ?? "Default"}.`,
-                                    }));
-                                }}
-                            >
-                                {ENVIRONMENT_PRESETS.map((preset) => (
-                                    <option key={preset.id} value={preset.id}>
-                                        {preset.label}
-                                    </option>
-                                ))}
-                            </select>
-                        </label>
-                        <button
-                            className="topBarIconButton"
-                            type="button"
-                            aria-label="User Settings"
-                            title="User Settings"
-                            onClick={() => setUserSettingsOpen((current) => !current)}
-                        >
-                            <PersonCircleRegular className="topBarIcon" />
-                        </button>
-                        <button
-                            className="topBarIconButton"
-                            type="button"
-                            aria-label="Help"
-                            title="Help"
-                            onClick={() => setHelpOpen((current) => !current)}
-                        >
-                            <QuestionCircleRegular className="topBarIcon" />
-                        </button>
+                </div>
+                <div className="topFileNameStack">
+                    <div className="topFileNameLine">
+                        <span className="topFileNameLabel">Source file</span>
+                        <span className="topFileNameValue">{status.sourceName}</span>
+                    </div>
+                    <div className="topFileNameLine">
+                        <span className="topFileNameLabel">Optimized file</span>
+                        {optimizedAsset ? (
+                            <span className="topEditableFileName">
+                                {isEditingDownloadFileName ? (
+                                    <input
+                                        ref={downloadFileNameInputRef}
+                                        className="topFileNameInput"
+                                        type="text"
+                                        value={downloadFileNameDraft}
+                                        aria-label="Optimized file name"
+                                        onChange={(event) => setDownloadFileNameDraft(event.target.value)}
+                                        onBlur={() => {
+                                            const nextFileName = downloadFileNameDraft.trim() || optimizedAsset.downloadFileName;
+                                            setEditedDownloadFileName(nextFileName);
+                                            setDownloadFileNameDraft(nextFileName);
+                                            setIsEditingDownloadFileName(false);
+                                        }}
+                                        onKeyDown={(event) => {
+                                            if (event.key === "Enter") {
+                                                const nextFileName = downloadFileNameDraft.trim() || optimizedAsset.downloadFileName;
+                                                setEditedDownloadFileName(nextFileName);
+                                                setDownloadFileNameDraft(nextFileName);
+                                                setIsEditingDownloadFileName(false);
+                                            }
+                                            if (event.key === "Escape") {
+                                                setDownloadFileNameDraft(resolvedDownloadFileName);
+                                                setEditedDownloadFileName(resolvedDownloadFileName);
+                                                setIsEditingDownloadFileName(false);
+                                            }
+                                        }}
+                                    />
+                                ) : (
+                                    <>
+                                        <span className="topFileNameValue">{resolvedDownloadFileName}</span>
+                                        <button
+                                            className="topEditFileNameButton"
+                                            type="button"
+                                            aria-label="Edit optimized file name"
+                                            title="Edit optimized file name"
+                                            onClick={() => {
+                                                setDownloadFileNameDraft(resolvedDownloadFileName);
+                                                setIsEditingDownloadFileName(true);
+                                            }}
+                                        >
+                                            {"\u270E"}
+                                        </button>
+                                    </>
+                                )}
+                            </span>
+                        ) : (
+                            <span className="topFileNameValue">Awaiting optimized output</span>
+                        )}
                     </div>
                 </div>
             </header>
@@ -616,8 +724,20 @@ export function App() {
                             </Button>
                         </div>
                         <div className="helpContent">
-                            <p>This is a placeholder user settings panel.</p>
-                            <p>We can add profile preferences, saved presets, theme options, or cloud-connected settings here later.</p>
+                            <p>Manage app-level preferences and restore the optimizer defaults from here.</p>
+                            <Button
+                                appearance="secondary"
+                                icon={<ArrowResetRegular />}
+                                onClick={() => {
+                                    resetSettings();
+                                    setStatus({
+                                        ...INITIAL_STATUS,
+                                        message: "Settings restored to defaults.",
+                                    });
+                                }}
+                            >
+                                Reset Optimization Settings
+                            </Button>
                         </div>
                     </div>
                 </div>
@@ -640,119 +760,138 @@ export function App() {
             </main>
 
             <footer className={`footerBar${footerHidden ? " isHidden" : ""}`}>
-                <div className="footerCluster footerBrand">
+                <div className="footerBrand">
                     <div className="brandTitle">GLB Optimizer v2 - Convert glTF and GLB files with with WEBP and KTX2 Textures online</div>
                     <div className="brandMeta">{textureModeLabel}</div>
                 </div>
 
-                <div className="footerCluster">
-                    <button className="footerButton footerPrimary" type="button" onClick={() => fileInputRef.current?.click()}>
-                        <span className="footerButtonContent">
-                            <FolderOpenRegular className="footerButtonIcon" />
-                            <span className="footerButtonLabel">Open</span>
-                        </span>
-                    </button>
-                    <button
-                        className="footerButton"
-                        type="button"
-                        onClick={async () => {
-                            await viewerRef.current?.toggleInspector();
-                        }}
-                    >
-                        <span className="footerButtonContent">
-                            <CubeCheckmarkRegular className="footerButtonIcon" />
-                            <span className="footerButtonLabel">Inspector</span>
-                        </span>
-                    </button>
-                    <button
-                        className="footerButton"
-                        type="button"
-                        onClick={() => {
-                            setSkyboxEnabled((current) => {
-                                const nextValue = !current;
-                                setStatus((statusCurrent) => ({
-                                    ...statusCurrent,
-                                    message: `Skybox ${nextValue ? "enabled" : "disabled"}.`,
-                                }));
-                                return nextValue;
-                            });
-                        }}
-                    >
-                        <span className="footerButtonContent">
-                            <WeatherSunnyRegular className="footerButtonIcon" />
-                            <span className="footerButtonLabel">{skyboxEnabled ? "Skybox On" : "Skybox Off"}</span>
-                        </span>
-                    </button>
-                    <button
-                        className="footerButton"
-                        type="button"
-                        onClick={() => {
-                            setWireframeEnabled((current) => {
-                                const nextValue = !current;
-                                setStatus((statusCurrent) => ({
-                                    ...statusCurrent,
-                                    message: `Wireframe ${nextValue ? "enabled" : "disabled"}.`,
-                                }));
-                                return nextValue;
-                            });
-                        }}
-                    >
-                        <span className="footerButtonContent">
-                            <GridRegular className="footerButtonIcon" />
-                            <span className="footerButtonLabel">{wireframeEnabled ? "Solid" : "Wireframe"}</span>
-                        </span>
-                    </button>
+                <div className="footerCenterZone">
+                    <div className="footerCluster footerMainActions">
+                        <button className="footerButton footerPrimary" type="button" onClick={() => fileInputRef.current?.click()}>
+                            <span className="footerButtonContent">
+                                <FolderOpenRegular className="footerButtonIcon" />
+                                <span className="footerButtonLabel">Open</span>
+                            </span>
+                        </button>
+                        <button className="footerButton footerAccent" type="button" onClick={triggerOptimization} disabled={isOptimizing}>
+                            <span className="footerButtonContent">
+                                <ArrowClockwiseRegular className="footerButtonIcon" />
+                                <span className="footerButtonLabel">{isOptimizing ? "Optimizing..." : "Optimize GLB"}</span>
+                            </span>
+                        </button>
+                        <button className="footerButton" type="button" onClick={() => setSettingsOpen((current) => !current)}>
+                            <span className="footerButtonContent">
+                                <SettingsRegular className="footerButtonIcon" />
+                                <span className="footerButtonLabel">Settings</span>
+                            </span>
+                        </button>
+                        <button className="footerButton" type="button" onClick={runScreenshotCompare} disabled={isComparing}>
+                            <span className="footerButtonContent">
+                                <ImageMultipleRegular className="footerButtonIcon" />
+                                <span className="footerButtonLabel">{isComparing ? "Comparing..." : "Compare"}</span>
+                            </span>
+                        </button>
+                        <button className="footerButton" type="button" onClick={downloadOptimizedAsset}>
+                            <span className="footerButtonContent">
+                                <ArrowDownloadRegular className="footerButtonIcon" />
+                                <span className="footerButtonLabel">Download</span>
+                            </span>
+                        </button>
+                    </div>
+
+                    <div className="footerCluster footerViewerActions">
+                        <button
+                            className="footerButton"
+                            type="button"
+                            onClick={async () => {
+                                await viewerRef.current?.toggleInspector();
+                            }}
+                        >
+                            <span className="footerButtonContent">
+                                <CubeCheckmarkRegular className="footerButtonIcon" />
+                                <span className="footerButtonLabel">Inspector</span>
+                            </span>
+                        </button>
+                        <button
+                            className="footerButton"
+                            type="button"
+                            onClick={() => {
+                                setSkyboxEnabled((current) => {
+                                    const nextValue = !current;
+                                    setStatus((statusCurrent) => ({
+                                        ...statusCurrent,
+                                        message: `Skybox ${nextValue ? "enabled" : "disabled"}.`,
+                                    }));
+                                    return nextValue;
+                                });
+                            }}
+                        >
+                            <span className="footerButtonContent">
+                                <WeatherSunnyRegular className="footerButtonIcon" />
+                                <span className="footerButtonLabel">{skyboxEnabled ? "Skybox On" : "Skybox Off"}</span>
+                            </span>
+                        </button>
+                        <button
+                            className="footerButton"
+                            type="button"
+                            onClick={() => {
+                                setWireframeEnabled((current) => {
+                                    const nextValue = !current;
+                                    setStatus((statusCurrent) => ({
+                                        ...statusCurrent,
+                                        message: `Wireframe ${nextValue ? "enabled" : "disabled"}.`,
+                                    }));
+                                    return nextValue;
+                                });
+                            }}
+                        >
+                            <span className="footerButtonContent">
+                                <GridRegular className="footerButtonIcon" />
+                                <span className="footerButtonLabel">{wireframeEnabled ? "Solid" : "Wireframe"}</span>
+                            </span>
+                        </button>
+                        <label className="footerEnvironmentControl" title="HDR environment">
+                            <WeatherSunnyHighRegular className="footerEnvironmentIcon" title="HDR environment" />
+                            <select
+                                className="footerEnvironmentSelect"
+                                value={selectedEnvironmentId}
+                                aria-label="Environment"
+                                title="HDR environment"
+                                onChange={(event) => {
+                                    const nextId = event.target.value;
+                                    setSelectedEnvironmentId(nextId);
+                                    const nextPreset = ENVIRONMENT_PRESETS.find((preset) => preset.id === nextId);
+                                    setStatus((current) => ({
+                                        ...current,
+                                        message: `Environment switched to ${nextPreset?.label ?? "Default"}.`,
+                                    }));
+                                }}
+                            >
+                                {ENVIRONMENT_PRESETS.map((preset) => (
+                                    <option key={preset.id} value={preset.id}>
+                                        {preset.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                    </div>
                 </div>
 
-                <div className="footerCluster">
+                <div className="footerCluster footerSecondaryActions">
                     <AnimationControls
                         state={animationState}
                         controller={animationController}
                     />
-                    <button className="footerButton footerAccent" type="button" onClick={triggerOptimization} disabled={isOptimizing}>
+                    <button className="footerButton" type="button" onClick={() => setUserSettingsOpen((current) => !current)}>
                         <span className="footerButtonContent">
-                            <ArrowClockwiseRegular className="footerButtonIcon" />
-                            <span className="footerButtonLabel">
-                                {isOptimizing
-                                    ? "Optimizing..."
-                                    : viewerRef.current?.getLoadedAssetInfo()?.kind === "texture"
-                                      ? "Convert Texture"
-                                    : "Optimize GLB"}
-                            </span>
+                            <PersonCircleRegular className="footerButtonIcon" />
+                            <span className="footerButtonLabel">User Settings</span>
                         </span>
                     </button>
-                    <button className="footerButton" type="button" onClick={downloadOptimizedAsset}>
+                    <button className="footerButton" type="button" onClick={() => setHelpOpen((current) => !current)}>
                         <span className="footerButtonContent">
-                            <ArrowDownloadRegular className="footerButtonIcon" />
-                            <span className="footerButtonLabel">Download</span>
-                        </span>
-                    </button>
-                    <button className="footerButton" type="button" onClick={runScreenshotCompare} disabled={isComparing}>
-                        <span className="footerButtonContent">
-                            <ImageMultipleRegular className="footerButtonIcon" />
-                            <span className="footerButtonLabel">{isComparing ? "Comparing..." : "Compare"}</span>
-                        </span>
-                    </button>
-                    <button className="footerButton" type="button" onClick={() => setSettingsOpen((current) => !current)}>
-                        <span className="footerButtonContent">
-                            <SettingsRegular className="footerButtonIcon" />
-                            <span className="footerButtonLabel">Settings</span>
-                        </span>
-                    </button>
-                    <button
-                        className="footerButton"
-                        type="button"
-                        onClick={() => {
-                            resetSettings();
-                            setStatus({
-                                ...INITIAL_STATUS,
-                                message: "Settings restored to defaults.",
-                            });
-                        }}
-                    >
-                        <span className="footerButtonContent">
-                            <ArrowResetRegular className="footerButtonIcon" />
-                            <span className="footerButtonLabel">Reset</span>
+                            <QuestionCircleRegular className="footerButtonIcon" />
+                            <span className="footerButtonLabel">Help</span>
                         </span>
                     </button>
                 </div>
