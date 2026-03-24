@@ -27,6 +27,36 @@
     margin-top: 12px;
 }
 
+.settingsTabs {
+    display: flex;
+    gap: 8px;
+    margin-top: 18px;
+    margin-bottom: 18px;
+    padding: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.settingsTab {
+    padding: 7px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.02);
+    color: rgba(255, 255, 255, 0.92);
+    cursor: pointer;
+    font: inherit;
+}
+
+.settingsTab:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+}
+
+.settingsTab.isActive {
+    border-color: rgba(130, 180, 255, 0.55);
+    background: rgba(130, 180, 255, 0.18);
+    color: #fff;
+}
+
 .fieldRow {
     display: grid;
     gap: 8px;
@@ -42,6 +72,20 @@
     border-color: rgba(255, 255, 255, 0.18);
 }
 
+.fieldRow .fui-Select select,
+.fieldRow select {
+    background: rgb(32, 25, 54) !important;
+    color: #fff !important;
+    -webkit-text-fill-color: #fff;
+}
+
+.fieldRow .fui-Input input,
+.fieldRow .fui-Input input[type="number"] {
+    color: #fff !important;
+    -webkit-text-fill-color: #fff;
+    caret-color: #fff;
+}
+
 .checkboxRow {
     display: block;
 }
@@ -49,6 +93,13 @@
 .checkboxRow .fui-Switch {
     justify-content: space-between;
     width: 100%;
+}
+
+.checkboxRow .fui-Switch label,
+.checkboxRow .fui-Switch .fui-Label,
+.checkboxRow .fui-Switch .fui-Label__label,
+.checkboxRow .fui-Switch span {
+    color: rgba(255, 255, 255, 0.96) !important;
 }
 
 .checkboxRow .fui-Label,

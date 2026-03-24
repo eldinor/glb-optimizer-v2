@@ -1,10 +1,10 @@
 .chosenSettingsPanel {
     position: absolute;
     left: 50%;
-    bottom: 70px;
+    bottom: var(--app-footer-height);
     z-index: 7;
     width: 360px;
-    max-height: min(320px, calc(100vh - 180px));
+    max-height: min(320px, calc(100vh - var(--app-header-height) - var(--app-footer-height) - 66px));
     overflow: auto;
     border: 1px solid rgba(255, 255, 255, 0.08);
     background: rgb(32, 25, 54);
@@ -62,7 +62,6 @@
     .chosenSettingsPanel {
         left: 50%;
         width: min(360px, 100vw);
-        bottom: 58px;
         max-height: 28vh;
     }
 }

@@ -12,7 +12,7 @@ interface SettingRow {
     value: string;
 }
 
-function createRows(settings: OptimizerSettings, activeAssetKind: LoadedAssetKind | null): SettingRow[] {
+export function getChosenSettingsRows(settings: OptimizerSettings, activeAssetKind: LoadedAssetKind | null): SettingRow[] {
     const rows: SettingRow[] = [
         { label: "Resize", value: settings.resize },
         { label: "Texture", value: settings.textureMode.toUpperCase().replace("KEEP", "Keep Original") },
@@ -82,7 +82,7 @@ function createRows(settings: OptimizerSettings, activeAssetKind: LoadedAssetKin
 }
 
 export function ChosenSettingsPanel({ settings, activeAssetKind, footerHidden }: ChosenSettingsPanelProps) {
-    const rows = createRows(settings, activeAssetKind);
+    const rows = getChosenSettingsRows(settings, activeAssetKind);
 
     return (
         <aside className={`chosenSettingsPanel${footerHidden ? " isExpanded" : ""}`}>

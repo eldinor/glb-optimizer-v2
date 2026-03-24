@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import type { AppStatus, LoadedAssetKind, ScreenshotCompareState } from "./model";
 import { Button, FluentProvider, webLightTheme } from "@fluentui/react-components";
 import type { AssetFeatures } from "../features/assetFeatures/detectAssetFeatures";
@@ -23,7 +24,6 @@ import { SettingsPanel } from "../components/SettingsPanel";
 import { ViewerCanvas, type ViewerCanvasHandle } from "../components/ViewerCanvas";
 import { AnimationControls } from "../components/AnimationControls";
 import { AssetInfoPanel } from "../components/AssetInfoPanel";
-import { ChosenSettingsPanel } from "../components/ChosenSettingsPanel";
 import type { AnimationControlsController, AnimationControlsState } from "../components/AnimationControls.types";
 import { ENVIRONMENT_PRESETS } from "./environmentPresets";
 import { optimizeLoadedAsset } from "./optimizer";
@@ -171,15 +171,21 @@ export function App() {
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [helpOpen, setHelpOpen] = useState(false);
     const [userSettingsOpen, setUserSettingsOpen] = useState(false);
+    const [userSettingsTab, setUserSettingsTab] = useState<"general" | "technical">("general");
     const [footerHidden, setFooterHidden] = useState(false);
     const [sourceAssetInfo, setSourceAssetInfo] = useState<GltfAssetInfo | null>(null);
     const [sourceAssetFeatures, setSourceAssetFeatures] = useState<AssetFeatures | null>(null);
     const [activeAssetKind, setActiveAssetKind] = useState<LoadedAssetKind | null>(null);
     const [loadedPrimaryFileName, setLoadedPrimaryFileName] = useState("");
     const [compressionPreference, setCompressionPreference] = useState<CompressionPreference>(readCompressionPreference);
+    const [headerCompressionMode, setHeaderCompressionMode] = useState<"draco" | "meshopt">("draco");
     const [editedDownloadFileName, setEditedDownloadFileName] = useState("");
     const [downloadFileNameDraft, setDownloadFileNameDraft] = useState("");
     const [isEditingDownloadFileName, setIsEditingDownloadFileName] = useState(false);
+    const [headerHeight, setHeaderHeight] = useState(43);
+    const [footerHeight, setFooterHeight] = useState(71);
+    const headerRef = useRef<HTMLElement | null>(null);
+    const footerRef = useRef<HTMLElement | null>(null);
     const viewerRef = useRef<ViewerCanvasHandle | null>(null);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const downloadFileNameInputRef = useRef<HTMLInputElement | null>(null);
@@ -233,6 +239,19 @@ export function App() {
         () => getCompressionConflictWarning(settings, compressionPreference, sourceAssetFeatures, activeAssetKind),
         [settings, compressionPreference, sourceAssetFeatures, activeAssetKind]
     );
+    const chosenSettingsRows = useMemo(() => getChosenSettingsRows(settings, activeAssetKind), [settings, activeAssetKind]);
+    const headerCompressionEnabled = settings.draco || settings.meshopt;
+
+    useEffect(() => {
+        if (settings.meshopt) {
+            setHeaderCompressionMode("meshopt");
+            return;
+        }
+
+        if (settings.draco) {
+            setHeaderCompressionMode("draco");
+        }
+    }, [settings.draco, settings.meshopt]);
 
     useEffect(() => {
         return () => {
@@ -259,6 +278,64 @@ export function App() {
     useEffect(() => {
         window.localStorage.setItem(USER_SETTINGS_STORAGE_KEY, compressionPreference);
     }, [compressionPreference]);
+
+    useEffect(() => {
+        const headerElement = headerRef.current;
+        if (!headerElement) {
+            return;
+        }
+
+        const updateHeaderHeight = () => {
+            setHeaderHeight(Math.ceil(headerElement.getBoundingClientRect().height));
+        };
+
+        updateHeaderHeight();
+
+        if (typeof ResizeObserver === "undefined") {
+            window.addEventListener("resize", updateHeaderHeight);
+            return () => {
+                window.removeEventListener("resize", updateHeaderHeight);
+            };
+        }
+
+        const resizeObserver = new ResizeObserver(() => {
+            updateHeaderHeight();
+        });
+        resizeObserver.observe(headerElement);
+
+        return () => {
+            resizeObserver.disconnect();
+        };
+    }, []);
+
+    useEffect(() => {
+        const footerElement = footerRef.current;
+        if (!footerElement) {
+            return;
+        }
+
+        const updateFooterHeight = () => {
+            setFooterHeight(Math.ceil(footerElement.getBoundingClientRect().height));
+        };
+
+        updateFooterHeight();
+
+        if (typeof ResizeObserver === "undefined") {
+            window.addEventListener("resize", updateFooterHeight);
+            return () => {
+                window.removeEventListener("resize", updateFooterHeight);
+            };
+        }
+
+        const resizeObserver = new ResizeObserver(() => {
+            updateFooterHeight();
+        });
+        resizeObserver.observe(footerElement);
+
+        return () => {
+            resizeObserver.disconnect();
+        };
+    }, []);
 
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
@@ -658,9 +735,14 @@ export function App() {
         }
     };
 
+    const appShellStyle = {
+        "--app-header-height": `${headerHeight}px`,
+        "--app-footer-height": `${footerHeight}px`,
+    } as CSSProperties;
+
     return (
         <FluentProvider theme={webLightTheme} className="appProvider">
-        <div className="appShell">
+        <div className="appShell" style={appShellStyle}>
             <input
                 ref={fileInputRef}
                 className="hiddenInput"
@@ -675,9 +757,9 @@ export function App() {
                 }}
             />
 
-            <header className="topBar">
+            <header ref={headerRef} className="topBar">
                 <div className="topBarRow">
-                    <div className="topColumn">
+                    <div className="topColumn topColumnSource">
                         <div className="topPlaceholder">
                             <span className="topPlaceholderLabel">Original</span>
                             <strong>{status.sourceLabel}</strong>
@@ -686,13 +768,71 @@ export function App() {
                         <div className="topPlaceholder">
                             <span className="topPlaceholderLabel">Compression</span>
                             <strong>{status.sourceCompression}</strong>
+                            <span className="topCompressionInline">
+                                <span className="topCompressionInlineLabel">Handling</span>
+                                <select
+                                    className="topCompressionSelect"
+                                    value={compressionPreference}
+                                    aria-label="Compression handling"
+                                    onChange={(event) => setCompressionPreference(event.target.value as CompressionPreference)}
+                                >
+                                    <option value="uncompress">Uncompress</option>
+                                    <option value="keep-same">Keep Same</option>
+                                </select>
+                            </span>
                         </div>
                         <div className="topPlaceholder">
-                            <span className="topPlaceholderLabel">Source</span>
-                            <strong>{activeAssetKind === "texture" ? "Texture" : "GLB"}</strong>
+                            <div className="topPlaceholderLabelRow">
+                                <span className="topPlaceholderLabel">Texture</span>
+                                <span className="topHeaderInlineText">Resize</span>
+                                <select
+                                    className="topHeaderInlineSelect"
+                                    value={settings.resize}
+                                    aria-label="Resize"
+                                    onChange={(event) => {
+                                        const nextValue = event.target.value as typeof settings.resize;
+                                        setSettings((current) => ({
+                                            ...current,
+                                            resize: nextValue,
+                                        }));
+                                        setStatus((current) => ({
+                                            ...current,
+                                            message: `Resize set to ${nextValue}.`,
+                                        }));
+                                    }}
+                                >
+                                    <option value="No Resize">No Resize</option>
+                                    <option value="2048">2048</option>
+                                    <option value="1024">1024</option>
+                                    <option value="512">512</option>
+                                    <option value="256">256</option>
+                                </select>
+                            </div>
+                            <label className="topHeaderControl topHeaderControlIndented">
+                                <span className="topHeaderControlText">Format</span>
+                                <select
+                                    className="topHeaderSelect"
+                                    value={settings.textureMode}
+                                    aria-label="Format"
+                                    onChange={(event) =>
+                                        setSettings((current) => ({
+                                            ...current,
+                                            textureMode: event.target.value as typeof settings.textureMode,
+                                        }))
+                                    }
+                                >
+                                    <option value="keep">Keep Original</option>
+                                    <option value="webp">WEBP</option>
+                                    <option value="png">PNG</option>
+                                    <option value="ktx2-uastc">KTX2 UASTC</option>
+                                    <option value="ktx2-etc1s">KTX2 ETC1S</option>
+                                    <option value="ktx2-mix">KTX2 MIX</option>
+                                    <option value="ktx2-user">KTX2 USER</option>
+                                </select>
+                            </label>
                         </div>
                     </div>
-                    <div className="topColumn">
+                    <div className="topColumn topColumnConverted">
                         <div className="topPlaceholder">
                             <span className="topPlaceholderLabel">Converted</span>
                             <strong>{status.optimizedLabel}</strong>
@@ -751,10 +891,53 @@ export function App() {
                         <div className="topPlaceholder">
                             <span className="topPlaceholderLabel">Compression</span>
                             <strong>{status.optimizedCompression}</strong>
+                            <span className="topCompressionInline">
+                                <label className="topCompressionCheckbox">
+                                    <input
+                                        type="checkbox"
+                                        checked={headerCompressionEnabled}
+                                        onChange={(event) => {
+                                            const checked = event.target.checked;
+                                            setSettings((current) => ({
+                                                ...current,
+                                                draco: checked ? headerCompressionMode === "draco" : false,
+                                                meshopt: checked ? headerCompressionMode === "meshopt" : false,
+                                            }));
+                                        }}
+                                    />
+                                    <span>Compress</span>
+                                </label>
+                                <select
+                                    className="topCompressionSelect"
+                                    value={headerCompressionMode}
+                                    disabled={!headerCompressionEnabled}
+                                    aria-label="Compression mode"
+                                    onChange={(event) => {
+                                        const nextMode = event.target.value as "draco" | "meshopt";
+                                        setHeaderCompressionMode(nextMode);
+                                        setSettings((current) => ({
+                                            ...current,
+                                            draco: current.draco || current.meshopt ? nextMode === "draco" : current.draco,
+                                            meshopt: current.draco || current.meshopt ? nextMode === "meshopt" : current.meshopt,
+                                        }));
+                                    }}
+                                >
+                                    <option value="draco">Draco</option>
+                                    <option value="meshopt">Meshopt</option>
+                                </select>
+                            </span>
                         </div>
-                        <div className="topPlaceholder">
-                            <span className="topPlaceholderLabel">Status</span>
-                            <strong>{hasRealOptimizedOutput ? "Ready" : "Waiting"}</strong>
+                        <div className="topPlaceholder topPlaceholderSettings topPlaceholderMerged">
+                            <div className="topChosenSettingsList">
+                                {chosenSettingsRows
+                                    .filter((row) => row.label !== "Resize" && row.label !== "Texture")
+                                    .map((row) => (
+                                    <div key={row.label} className="topChosenSettingsRow">
+                                        <span className="topChosenSettingsLabel">{row.label}</span>
+                                        <span className="topChosenSettingsValue">{row.value}</span>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -768,8 +951,6 @@ export function App() {
             <div className="leftRail">
                 <AssetInfoPanel info={sourceAssetInfo} />
             </div>
-
-            <ChosenSettingsPanel settings={settings} activeAssetKind={activeAssetKind} footerHidden={footerHidden} />
 
             {settingsOpen ? (
                 <div className="overlayContainer">
@@ -829,21 +1010,73 @@ export function App() {
                         </div>
                         <div className="helpContent">
                             <p>Manage app-level preferences and restore the optimizer defaults from here.</p>
-                            <label className="userSettingsField">
-                                <span className="userSettingsLabel">Compression Handling</span>
-                                <select
-                                    className="userSettingsSelect"
-                                    value={compressionPreference}
-                                    onChange={(event) => setCompressionPreference(event.target.value as CompressionPreference)}
+                            <div className="userSettingsTabs" role="tablist" aria-label="User settings sections">
+                                <button
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={userSettingsTab === "general"}
+                                    className={`userSettingsTab${userSettingsTab === "general" ? " isActive" : ""}`}
+                                    onClick={() => setUserSettingsTab("general")}
                                 >
-                                    <option value="uncompress">Uncompress</option>
-                                    <option value="keep-same">Keep the same compression</option>
-                                </select>
-                            </label>
-                            <p className="userSettingsHint">
-                                When enabled, original Draco or Meshopt compression is reapplied with default settings only if you have not already chosen another compression method.
-                            </p>
-                            {compressionConflictWarning ? <p className="userSettingsWarning">{compressionConflictWarning}</p> : null}
+                                    General
+                                </button>
+                                <button
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={userSettingsTab === "technical"}
+                                    className={`userSettingsTab${userSettingsTab === "technical" ? " isActive" : ""}`}
+                                    onClick={() => setUserSettingsTab("technical")}
+                                >
+                                    Technical
+                                </button>
+                            </div>
+                            {userSettingsTab === "general" ? (
+                                <>
+                                    <h3>Output</h3>
+                                    <label className="userSettingsField">
+                                        <span className="userSettingsLabel">Texture Export</span>
+                                        <select
+                                            className="userSettingsSelect"
+                                            value={settings.textureExportMode}
+                                            onChange={(event) =>
+                                                setSettings((current) => ({
+                                                    ...current,
+                                                    textureExportMode: event.target.value as typeof settings.textureExportMode,
+                                                }))
+                                            }
+                                        >
+                                            <option value="image">Image</option>
+                                            <option value="glb-plane">GLB Plane</option>
+                                        </select>
+                                    </label>
+                                    <p className="userSettingsHint">Output preferences are now managed here instead of the main optimization settings panel.</p>
+                                </>
+                            ) : (
+                                <>
+                                    <h3>Technical</h3>
+                                    <label className="userSettingsField">
+                                        <span className="userSettingsLabel">timeToWaitBeforeSuspend</span>
+                                        <input
+                                            className="userSettingsInput"
+                                            type="number"
+                                            value={settings.timeToWaitBeforeSuspend}
+                                            step={100}
+                                            min={0}
+                                            onChange={(event) => {
+                                                const nextValue = Number(event.target.value);
+                                                setSettings((current) => ({
+                                                    ...current,
+                                                    timeToWaitBeforeSuspend: Math.max(0, nextValue),
+                                                }));
+                                            }}
+                                        />
+                                    </label>
+                                    <p className="userSettingsHint">
+                                        Compression handling is now available from the left header compression card.
+                                    </p>
+                                    {compressionConflictWarning ? <p className="userSettingsWarning">{compressionConflictWarning}</p> : null}
+                                </>
+                            )}
                             <Button
                                 appearance="secondary"
                                 icon={<ArrowResetRegular />}
@@ -878,9 +1111,9 @@ export function App() {
                 />
             </main>
 
-            <footer className={`footerBar${footerHidden ? " isHidden" : ""}`}>
+            <footer ref={footerRef} className={`footerBar${footerHidden ? " isHidden" : ""}`}>
                 <div className="footerBrand">
-                    <div className="brandTitle">GLB Optimizer v2 - Convert glTF and GLB files with with WEBP and KTX2 Textures online</div>
+                    <div className="brandTitle">GLB Optimizer v2</div>
                     <div className="brandMeta">{textureModeLabel}</div>
                 </div>
 
@@ -1025,4 +1258,4 @@ export function App() {
         </FluentProvider>
     );
 }
-
+import { getChosenSettingsRows } from "../components/ChosenSettingsPanel";
