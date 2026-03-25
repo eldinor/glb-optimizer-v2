@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import type { LoadedAssetKind, OptimizerSettings } from "../app/model";
 import { Button, Field, Input, Select, Switch, Text } from "@fluentui/react-components";
@@ -76,13 +76,21 @@ function SelectRow<T extends string>(props: {
 
 export function SettingsPanel(props: SettingsPanelProps) {
     const isTextureOnlyMode = props.activeAssetKind === "texture";
-    const [activeTab, setActiveTab] = useState<"basic" | "mesh" | "texture">(isTextureOnlyMode ? "texture" : "basic");
+    const [activeTab, setActiveTab] = useState<"basic" | "compression" | "simplification" | "mesh" | "texture">(
+        isTextureOnlyMode ? "texture" : "basic"
+    );
     const update = (patch: Partial<OptimizerSettings>, message?: string) => {
         props.onSettingsChange((current) => ({ ...current, ...patch }));
         if (message) {
             props.onExplainStage(message);
         }
     };
+
+    useEffect(() => {
+        if (isTextureOnlyMode && activeTab !== "texture") {
+            setActiveTab("texture");
+        }
+    }, [activeTab, isTextureOnlyMode]);
 
     return (
         <div className="settingsPanel">
@@ -106,6 +114,24 @@ export function SettingsPanel(props: SettingsPanelProps) {
                             onClick={() => setActiveTab("basic")}
                         >
                             Basic
+                        </button>
+                        <button
+                            type="button"
+                            role="tab"
+                            aria-selected={activeTab === "compression"}
+                            className={`settingsTab${activeTab === "compression" ? " isActive" : ""}`}
+                            onClick={() => setActiveTab("compression")}
+                        >
+                            Compression
+                        </button>
+                        <button
+                            type="button"
+                            role="tab"
+                            aria-selected={activeTab === "simplification"}
+                            className={`settingsTab${activeTab === "simplification" ? " isActive" : ""}`}
+                            onClick={() => setActiveTab("simplification")}
+                        >
+                            Simplification
                         </button>
                         <button
                             type="button"
@@ -142,17 +168,10 @@ export function SettingsPanel(props: SettingsPanelProps) {
                 </Section>
             ) : null}
 
-            {!isTextureOnlyMode && activeTab === "mesh" ? (
-                <Section title="Mesh">
+            {!isTextureOnlyMode && activeTab === "compression" ? (
+                <Section title="Compression">
                     <ToggleRow label="Draco Compression" checked={props.settings.draco} onChange={(value) => update({ draco: value })} />
-                    <ToggleRow label="Simplify" checked={props.settings.simplify} onChange={(value) => update({ simplify: value })} />
-                    <NumberRow label="Simplify Ratio" value={props.settings.simplifyRatio} step={0.01} min={0} max={1} onChange={(value) => update({ simplifyRatio: value })} />
-                    <NumberRow label="Simplify Error" value={props.settings.simplifyError} step={0.0001} min={0} onChange={(value) => update({ simplifyError: value })} />
-                    <ToggleRow label="Lock Border" checked={props.settings.simplifyLockBorder} onChange={(value) => update({ simplifyLockBorder: value })} />
-                    <ToggleRow label="Reorder" checked={props.settings.reorder} onChange={(value) => update({ reorder: value })} />
-                    <ToggleRow label="Quantize" checked={props.settings.quantize} onChange={(value) => update({ quantize: value })} />
                     <ToggleRow label="Meshopt Compression" checked={props.settings.meshopt} onChange={(value) => update({ meshopt: value })} />
-                    <ToggleRow label="GPU Instancing" checked={props.settings.gpuInstancing} onChange={(value) => update({ gpuInstancing: value })} />
                     <SelectRow
                         label="Meshopt Level"
                         value={props.settings.meshoptLevel}
@@ -162,6 +181,23 @@ export function SettingsPanel(props: SettingsPanelProps) {
                         ]}
                         onChange={(value) => update({ meshoptLevel: value })}
                     />
+                    <ToggleRow label="Quantize" checked={props.settings.quantize} onChange={(value) => update({ quantize: value })} />
+                    <ToggleRow label="Reorder" checked={props.settings.reorder} onChange={(value) => update({ reorder: value })} />
+                </Section>
+            ) : null}
+
+            {!isTextureOnlyMode && activeTab === "simplification" ? (
+                <Section title="Simplification">
+                    <ToggleRow label="Simplify" checked={props.settings.simplify} onChange={(value) => update({ simplify: value })} />
+                    <NumberRow label="Simplify Ratio" value={props.settings.simplifyRatio} step={0.01} min={0} max={1} onChange={(value) => update({ simplifyRatio: value })} />
+                    <NumberRow label="Simplify Error" value={props.settings.simplifyError} step={0.0001} min={0} onChange={(value) => update({ simplifyError: value })} />
+                    <ToggleRow label="Lock Border" checked={props.settings.simplifyLockBorder} onChange={(value) => update({ simplifyLockBorder: value })} />
+                </Section>
+            ) : null}
+
+            {!isTextureOnlyMode && activeTab === "mesh" ? (
+                <Section title="Mesh">
+                    <ToggleRow label="GPU Instancing" checked={props.settings.gpuInstancing} onChange={(value) => update({ gpuInstancing: value })} />
                 </Section>
             ) : null}
 

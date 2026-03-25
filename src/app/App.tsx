@@ -191,6 +191,11 @@ export function App() {
     const downloadFileNameInputRef = useRef<HTMLInputElement | null>(null);
     const lastOptimizedSettingsSignatureRef = useRef<string | null>(null);
     const sourceAssetInfoRequestIdRef = useRef(0);
+    const settingsRef = useRef(settings);
+    const compressionPreferenceRef = useRef(compressionPreference);
+    const optimizedAssetRef = useRef(optimizedAsset);
+    const compressionConflictWarningRef = useRef("");
+    const editedDownloadFileNameRef = useRef(editedDownloadFileName);
 
     const textureModeLabel = useMemo(() => {
         return {
@@ -234,7 +239,6 @@ export function App() {
     }, [loadedPrimaryFileName, activeAssetKind, settings]);
 
     const resolvedDownloadFileName = editedDownloadFileName.trim() || optimizedAsset?.downloadFileName || expectedDownloadFileNameFromLoadedAsset;
-    const hasRealOptimizedOutput = Boolean(editedDownloadFileName.trim() || optimizedAsset?.downloadFileName);
     const compressionConflictWarning = useMemo(
         () => getCompressionConflictWarning(settings, compressionPreference, sourceAssetFeatures, activeAssetKind),
         [settings, compressionPreference, sourceAssetFeatures, activeAssetKind]
@@ -252,6 +256,26 @@ export function App() {
             setHeaderCompressionMode("draco");
         }
     }, [settings.draco, settings.meshopt]);
+
+    useEffect(() => {
+        settingsRef.current = settings;
+    }, [settings]);
+
+    useEffect(() => {
+        compressionPreferenceRef.current = compressionPreference;
+    }, [compressionPreference]);
+
+    useEffect(() => {
+        optimizedAssetRef.current = optimizedAsset;
+    }, [optimizedAsset]);
+
+    useEffect(() => {
+        compressionConflictWarningRef.current = compressionConflictWarning;
+    }, [compressionConflictWarning]);
+
+    useEffect(() => {
+        editedDownloadFileNameRef.current = editedDownloadFileName;
+    }, [editedDownloadFileName]);
 
     useEffect(() => {
         return () => {
@@ -455,6 +479,11 @@ export function App() {
 
     const handleSourceAssetLoaded = useCallback(
         async (asset: { kind: LoadedAssetKind; primaryFileName: string; files: File[] }, reason: "load" | "reload") => {
+            const latestSettings = settingsRef.current;
+            const latestCompressionPreference = compressionPreferenceRef.current;
+            const latestOptimizedAsset = optimizedAssetRef.current;
+            const latestCompressionConflictWarning = compressionConflictWarningRef.current;
+            const latestEditedDownloadFileName = editedDownloadFileNameRef.current;
             const requestId = ++sourceAssetInfoRequestIdRef.current;
             setSourceSceneVersion((current) => current + 1);
             setCompareState(null);
@@ -482,10 +511,10 @@ export function App() {
             }
 
             if (reason === "load") {
-                if (optimizedAsset) {
-                    URL.revokeObjectURL(optimizedAsset.url);
-                    if (optimizedAsset.previewUrl !== optimizedAsset.url) {
-                        URL.revokeObjectURL(optimizedAsset.previewUrl);
+                if (latestOptimizedAsset) {
+                    URL.revokeObjectURL(latestOptimizedAsset.url);
+                    if (latestOptimizedAsset.previewUrl !== latestOptimizedAsset.url) {
+                        URL.revokeObjectURL(latestOptimizedAsset.previewUrl);
                     }
                     setOptimizedAsset(null);
                 }
@@ -501,23 +530,23 @@ export function App() {
 
             updateSourceStatusFromLoadedAsset();
 
-            if (!optimizedAsset || !lastOptimizedSettingsSignatureRef.current) {
+            if (!latestOptimizedAsset || !lastOptimizedSettingsSignatureRef.current) {
                 resetOptimizedStatus();
                 return;
             }
 
-            if (lastOptimizedSettingsSignatureRef.current === getOptimizationSignature(settings, compressionPreference)) {
+            if (lastOptimizedSettingsSignatureRef.current === getOptimizationSignature(latestSettings, latestCompressionPreference)) {
                 return;
             }
 
             setIsOptimizing(true);
-            if (!editedDownloadFileName.trim()) {
-                setEditedDownloadFileName(getExpectedDownloadFileName(asset, settings));
+            if (!latestEditedDownloadFileName.trim()) {
+                setEditedDownloadFileName(getExpectedDownloadFileName(asset, latestSettings));
             }
             setStatus((current) => ({
                 ...current,
                 message: `Reloaded ${asset.primaryFileName}. Re-running optimization with updated settings...`,
-                warning: compressionConflictWarning,
+                warning: latestCompressionConflictWarning,
             }));
 
             try {
@@ -526,16 +555,21 @@ export function App() {
                 try {
                     const result = await optimizeLoadedAsset(
                         asset,
-                        getEffectiveOptimizationSettings(settings, compressionPreference, optimizationSourceFeatures, asset.kind)
+                        getEffectiveOptimizationSettings(
+                            latestSettings,
+                            latestCompressionPreference,
+                            optimizationSourceFeatures,
+                            asset.kind
+                        )
                     );
                     setStatus((current) => ({
                         ...current,
                         message: `Optimization output generated for ${result.downloadFileName}. Finalizing preview and download state...`,
                     }));
-                    if (optimizedAsset) {
-                        URL.revokeObjectURL(optimizedAsset.url);
-                        if (optimizedAsset.previewUrl !== optimizedAsset.url) {
-                            URL.revokeObjectURL(optimizedAsset.previewUrl);
+                    if (latestOptimizedAsset) {
+                        URL.revokeObjectURL(latestOptimizedAsset.url);
+                        if (latestOptimizedAsset.previewUrl !== latestOptimizedAsset.url) {
+                            URL.revokeObjectURL(latestOptimizedAsset.previewUrl);
                         }
                     }
                     setOptimizedAsset({
@@ -548,14 +582,14 @@ export function App() {
                     setEditedDownloadFileName(result.downloadFileName);
                     setDownloadFileNameDraft(result.downloadFileName);
                     setIsEditingDownloadFileName(false);
-                    lastOptimizedSettingsSignatureRef.current = getOptimizationSignature(settings, compressionPreference);
+                    lastOptimizedSettingsSignatureRef.current = getOptimizationSignature(latestSettings, latestCompressionPreference);
                     setStatus((current) => ({
                         ...current,
                         optimizedLabel: formatMegabytes(result.sizeBytes),
                         optimizedCompression: result.compressionLabel,
                         message:
                             asset.kind === "texture"
-                                ? settings.textureExportMode === "image"
+                                ? latestSettings.textureExportMode === "image"
                                     ? "Reload complete. Optimized texture image and preview plane updated for the current settings."
                                     : "Reload complete. Optimized GLB plane updated for the current settings."
                                 : "Reload complete. Optimized GLB updated for the current settings.",
@@ -573,7 +607,7 @@ export function App() {
                 setIsOptimizing(false);
             }
         },
-        [optimizedAsset, settings, compressionPreference, compressionConflictWarning, getOptimizationSourceFeatures]
+        [getOptimizationSourceFeatures]
     );
 
     const handleSceneInfoChange = useCallback(
