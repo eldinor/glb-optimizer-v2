@@ -1,12 +1,17 @@
 .settingsPanel {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
     padding: 18px;
     background: transparent;
     color: #fff;
+    overflow-x: hidden;
 }
 
 .settingsIntro {
     display: grid;
     gap: 8px;
+    min-width: 0;
 }
 
 .settingsIntro h2,
@@ -25,25 +30,33 @@
     display: grid;
     gap: 10px;
     margin-top: 12px;
+    min-width: 0;
 }
 
 .settingsTabs {
     display: flex;
-    gap: 8px;
-    margin-top: 18px;
-    margin-bottom: 18px;
-    padding: 4px;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+    margin-bottom: 12px;
+    padding: 3px;
     border: 1px solid rgba(255, 255, 255, 0.08);
     background: rgba(255, 255, 255, 0.03);
+    min-width: 0;
 }
 
 .settingsTab {
-    padding: 7px 12px;
+    flex: 0 1 auto;
+    min-width: 0;
+    padding: 5px 9px;
     border: 1px solid rgba(255, 255, 255, 0.14);
     background: rgba(255, 255, 255, 0.02);
     color: rgba(255, 255, 255, 0.92);
     cursor: pointer;
     font: inherit;
+    font-size: 0.88rem;
+    line-height: 1.15;
+    overflow-wrap: anywhere;
 }
 
 .settingsTab:hover {
@@ -60,12 +73,14 @@
 .fieldRow {
     display: grid;
     gap: 8px;
+    min-width: 0;
     font-size: 0.94rem;
     color: rgba(255, 255, 255, 0.9);
 }
 
 .fieldRow .fui-Input,
 .fieldRow .fui-Select {
+    min-width: 0;
     width: 100%;
     background: rgba(255, 255, 255, 0.06);
     color: #fff;

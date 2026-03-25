@@ -76,8 +76,8 @@ function SelectRow<T extends string>(props: {
 
 export function SettingsPanel(props: SettingsPanelProps) {
     const isTextureOnlyMode = props.activeAssetKind === "texture";
-    const [activeTab, setActiveTab] = useState<"basic" | "compression" | "simplification" | "mesh" | "texture">(
-        isTextureOnlyMode ? "texture" : "basic"
+    const [activeTab, setActiveTab] = useState<"cleanup" | "geometry" | "compression" | "simplification" | "mesh" | "texture">(
+        isTextureOnlyMode ? "texture" : "cleanup"
     );
     const update = (patch: Partial<OptimizerSettings>, message?: string) => {
         props.onSettingsChange((current) => ({ ...current, ...patch }));
@@ -94,14 +94,13 @@ export function SettingsPanel(props: SettingsPanelProps) {
 
     return (
         <div className="settingsPanel">
-            <div className="settingsIntro">
-                <h2>Optimization Controls</h2>
-                {isTextureOnlyMode ? (
+            {isTextureOnlyMode ? (
+                <div className="settingsIntro">
                     <Text block>
                         Texture-only mode uses the texture settings below. Mesh and scene transforms are hidden because they only affect GLB and GLTF assets.
                     </Text>
-                ) : null}
-            </div>
+                </div>
+            ) : null}
 
             <div className="settingsTabs" role="tablist" aria-label="Settings sections">
                 {!isTextureOnlyMode ? (
@@ -109,11 +108,20 @@ export function SettingsPanel(props: SettingsPanelProps) {
                         <button
                             type="button"
                             role="tab"
-                            aria-selected={activeTab === "basic"}
-                            className={`settingsTab${activeTab === "basic" ? " isActive" : ""}`}
-                            onClick={() => setActiveTab("basic")}
+                            aria-selected={activeTab === "cleanup"}
+                            className={`settingsTab${activeTab === "cleanup" ? " isActive" : ""}`}
+                            onClick={() => setActiveTab("cleanup")}
                         >
-                            Basic
+                            Cleanup
+                        </button>
+                        <button
+                            type="button"
+                            role="tab"
+                            aria-selected={activeTab === "geometry"}
+                            className={`settingsTab${activeTab === "geometry" ? " isActive" : ""}`}
+                            onClick={() => setActiveTab("geometry")}
+                        >
+                            Geometry
                         </button>
                         <button
                             type="button"
@@ -155,13 +163,18 @@ export function SettingsPanel(props: SettingsPanelProps) {
                 </button>
             </div>
 
-            {!isTextureOnlyMode && activeTab === "basic" ? (
-                <Section title="Basic">
+            {!isTextureOnlyMode && activeTab === "cleanup" ? (
+                <Section title="Cleanup">
                     <ToggleRow label="Dedup" checked={props.settings.dedup} onChange={(value) => update({ dedup: value })} />
                     <ToggleRow label="Prune" checked={props.settings.prune} onChange={(value) => update({ prune: value })} />
                     <ToggleRow label="Flatten" checked={props.settings.flatten} onChange={(value) => update({ flatten: value })} />
                     <ToggleRow label="Join" checked={props.settings.join} onChange={(value) => update({ join: value })} />
                     <ToggleRow label="Resample" checked={props.settings.resample} onChange={(value) => update({ resample: value })} />
+                </Section>
+            ) : null}
+
+            {!isTextureOnlyMode && activeTab === "geometry" ? (
+                <Section title="Geometry">
                     <ToggleRow label="Sparse" checked={props.settings.sparse} onChange={(value) => update({ sparse: value })} />
                     <NumberRow label="Sparse Ratio" value={props.settings.sparseRatio} step={0.01} min={0} max={1} onChange={(value) => update({ sparseRatio: value })} />
                     <ToggleRow label="Weld" checked={props.settings.weld} onChange={(value) => update({ weld: value })} />
