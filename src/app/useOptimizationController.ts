@@ -150,6 +150,8 @@ export function useOptimizationController({
     const [isEditingDownloadFileName, setIsEditingDownloadFileName] = useState(false);
     const lastOptimizedSettingsSignatureRef = useRef<string | null>(null);
     const sourceAssetInfoRequestIdRef = useRef(0);
+    const previousExpectedDownloadFileNameRef = useRef("");
+    const previousOptimizedDownloadFileNameRef = useRef("");
     const settingsRef = useRef(settings);
     const compressionPreferenceRef = useRef(compressionPreference);
     const optimizedAssetRef = useRef(optimizedAsset);
@@ -201,6 +203,29 @@ export function useOptimizationController({
     useEffect(() => {
         editedDownloadFileNameRef.current = editedDownloadFileName;
     }, [editedDownloadFileName]);
+
+    useEffect(() => {
+        const previousExpectedDownloadFileName = previousExpectedDownloadFileNameRef.current;
+        const previousOptimizedDownloadFileName = previousOptimizedDownloadFileNameRef.current;
+        const trimmedEditedDownloadFileName = editedDownloadFileName.trim();
+        const nextAutomaticDownloadFileName = optimizedAsset?.downloadFileName || expectedDownloadFileNameFromLoadedAsset;
+
+        if (
+            trimmedEditedDownloadFileName &&
+            nextAutomaticDownloadFileName &&
+            (trimmedEditedDownloadFileName === previousExpectedDownloadFileName ||
+                trimmedEditedDownloadFileName === previousOptimizedDownloadFileName) &&
+            trimmedEditedDownloadFileName !== nextAutomaticDownloadFileName
+        ) {
+            setEditedDownloadFileName(nextAutomaticDownloadFileName);
+            if (!isEditingDownloadFileName) {
+                setDownloadFileNameDraft(nextAutomaticDownloadFileName);
+            }
+        }
+
+        previousExpectedDownloadFileNameRef.current = expectedDownloadFileNameFromLoadedAsset;
+        previousOptimizedDownloadFileNameRef.current = optimizedAsset?.downloadFileName ?? "";
+    }, [editedDownloadFileName, expectedDownloadFileNameFromLoadedAsset, isEditingDownloadFileName, optimizedAsset?.downloadFileName]);
 
     useEffect(() => {
         return () => {

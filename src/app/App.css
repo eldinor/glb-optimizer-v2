@@ -245,13 +245,15 @@
 
 .topChosenSettingsList {
     display: grid;
-    gap: 4px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px 12px;
+    align-content: start;
 }
 
 .topChosenSettingsRow {
     display: grid;
-    grid-template-columns: 58px minmax(0, 1fr);
-    gap: 8px;
+    grid-template-columns: minmax(76px, auto) minmax(0, 1fr);
+    gap: 6px;
     min-width: 0;
 }
 

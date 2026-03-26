@@ -26,7 +26,7 @@ import { HelpOverlay } from "../components/HelpOverlay";
 import type { AnimationControlsController, AnimationControlsState } from "../components/AnimationControls.types";
 import { getChosenSettingsRows } from "../components/ChosenSettingsPanel";
 import { ENVIRONMENT_PRESETS } from "./environmentPresets";
-import { INITIAL_STATUS, type CompressionPreference, useOptimizationController } from "./useOptimizationController";
+import { getExpectedDownloadFileName, INITIAL_STATUS, type CompressionPreference, useOptimizationController } from "./useOptimizationController";
 import "./App.css";
 const USER_SETTINGS_STORAGE_KEY = "newsandbox.optimizer.user-settings";
 
@@ -39,6 +39,19 @@ const EMPTY_ANIMATION_STATE: AnimationControlsState = {
     groupIndex: 0,
     groupNames: [],
 };
+
+function replaceFileExtension(fileName: string, nextExtension: string) {
+    const trimmedFileName = fileName.trim();
+    if (!trimmedFileName) {
+        return trimmedFileName;
+    }
+
+    const lastDotIndex = trimmedFileName.lastIndexOf(".");
+    const lastSlashIndex = Math.max(trimmedFileName.lastIndexOf("/"), trimmedFileName.lastIndexOf("\\"));
+    const hasExtension = lastDotIndex > lastSlashIndex;
+    const baseName = hasExtension ? trimmedFileName.slice(0, lastDotIndex) : trimmedFileName;
+    return `${baseName}${nextExtension}`;
+}
 
 function readCompressionPreference(): CompressionPreference {
     if (typeof window === "undefined") {
@@ -389,9 +402,29 @@ export function App() {
                                             checked={settings.sceneExportMode === "gltf-zip"}
                                             onChange={(event) => {
                                                 const checked = event.target.checked;
+                                                const nextSceneExportMode: typeof settings.sceneExportMode = checked ? "gltf-zip" : "glb";
+                                                const loadedAsset = viewerRef.current?.getLoadedAssetInfo();
+                                                const nextSettings = {
+                                                    ...settings,
+                                                    sceneExportMode: nextSceneExportMode,
+                                                };
+                                                const nextExtension = nextSceneExportMode === "gltf-zip" ? ".zip" : ".glb";
+
+                                                if (loadedAsset) {
+                                                    const nextAutomaticDownloadFileName = getExpectedDownloadFileName(loadedAsset, nextSettings);
+                                                    const nextResolvedDownloadFileName = resolvedDownloadFileName
+                                                        ? replaceFileExtension(resolvedDownloadFileName, nextExtension)
+                                                        : nextAutomaticDownloadFileName;
+
+                                                    setEditedDownloadFileName(nextResolvedDownloadFileName);
+                                                    if (!isEditingDownloadFileName) {
+                                                        setDownloadFileNameDraft(nextResolvedDownloadFileName);
+                                                    }
+                                                }
+
                                                 setSettings((current) => ({
                                                     ...current,
-                                                    sceneExportMode: checked ? "gltf-zip" : "glb",
+                                                    sceneExportMode: nextSceneExportMode,
                                                 }));
                                                 setStatus((current) => ({
                                                     ...current,
@@ -501,7 +534,7 @@ export function App() {
                         <div className="topPlaceholder topPlaceholderSettings topPlaceholderMerged">
                             <div className="topChosenSettingsList">
                                 {chosenSettingsRows
-                                    .filter((row) => row.label !== "Resize" && row.label !== "Texture")
+                                    .filter((row) => row.label !== "Resize" && row.label !== "Texture" && row.label !== "Export")
                                     .map((row) => (
                                     <div key={row.label} className="topChosenSettingsRow">
                                         <span className="topChosenSettingsLabel">{row.label}</span>

@@ -26,33 +26,51 @@ export function getChosenSettingsRows(settings: OptimizerSettings, activeAssetKi
     }
 
     if (activeAssetKind !== "texture") {
-        rows.push({
-            label: "Export",
-            value: settings.sceneExportMode === "gltf-zip" ? "GLTF ZIP" : "GLB",
-        });
-
-        const basicTransforms = [
+        const cleanupTransforms = [
             settings.dedup && "Dedup",
             settings.prune && "Prune",
             settings.flatten && "Flatten",
             settings.join && "Join",
             settings.resample && "Resample",
+        ].filter(Boolean);
+
+        const geometryTransforms = [
             settings.sparse && `Sparse ${settings.sparseRatio.toFixed(2)}`,
             settings.weld && "Weld",
         ].filter(Boolean);
 
-        const meshTransforms = [
+        const compressionTransforms = [
             settings.draco && "Draco",
-            settings.simplify && `Simplify ${settings.simplifyRatio.toFixed(2)}`,
-            settings.reorder && "Reorder",
-            settings.quantize && "Quantize",
             settings.meshopt && `Meshopt ${settings.meshoptLevel}`,
+            settings.quantize && "Quantize",
+            settings.reorder && "Reorder",
+        ].filter(Boolean);
+
+        const simplificationTransforms = [
+            settings.simplify && `Simplify ${settings.simplifyRatio.toFixed(2)}`,
+            settings.simplify && `Error ${settings.simplifyError}`,
+            settings.simplifyLockBorder && "Lock Border",
+        ].filter(Boolean);
+
+        const meshTransforms = [
             settings.gpuInstancing && "GPU Instancing",
         ].filter(Boolean);
 
         rows.push({
-            label: "Basic",
-            value: basicTransforms.length ? basicTransforms.join(", ") : "None",
+            label: "Cleanup",
+            value: cleanupTransforms.length ? cleanupTransforms.join(", ") : "None",
+        });
+        rows.push({
+            label: "Geometry",
+            value: geometryTransforms.length ? geometryTransforms.join(", ") : "None",
+        });
+        rows.push({
+            label: "Compression",
+            value: compressionTransforms.length ? compressionTransforms.join(", ") : "None",
+        });
+        rows.push({
+            label: "Simplification",
+            value: simplificationTransforms.length ? simplificationTransforms.join(", ") : "None",
         });
         rows.push({
             label: "Mesh",
