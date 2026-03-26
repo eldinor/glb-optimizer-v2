@@ -8,6 +8,7 @@ import { loadDracoDecoderModule, loadDracoEncoderModule } from "../features/drac
 import { ALL_EXTENSIONS, KHRDracoMeshCompression } from "@gltf-transform/extensions";
 import { ImageUtils, Logger, WebIO, type JSONDocument } from "@gltf-transform/core";
 import { MeshoptDecoder, MeshoptEncoder } from "meshoptimizer";
+import { createStoredZip } from "./zip";
 
 function getFileExtension(name: string): string {
     const index = name.lastIndexOf(".");
@@ -166,6 +167,46 @@ export function getTextureCompressionLabel(mimeType: string | null | undefined):
     return getTextureOutputExtension(mimeType).replace(".", "").toUpperCase();
 }
 
+function createDownloadBlobUrl(bytes: Uint8Array, mimeType: string) {
+    return URL.createObjectURL(new Blob([bytes], { type: mimeType }));
+}
+
+async function createSceneDownloadOutput(
+    io: WebIO,
+    document: Awaited<ReturnType<WebIO["readBinary"]>>,
+    asset: LoadedAssetInfo,
+    settings: OptimizerSettings
+) {
+    const baseName = asset.primaryFileName.replace(/\.[^/.]+$/, "") + "-opt";
+    const previewGlb = await io.writeBinary(document);
+    const previewObjectUrl = createDownloadBlobUrl(previewGlb, "model/gltf-binary");
+
+    if (settings.sceneExportMode === "gltf-zip") {
+        const jsonDocument = await io.writeJSON(document, { basename: baseName });
+        const gltfBytes = new TextEncoder().encode(JSON.stringify(jsonDocument.json));
+        const zipBytes = createStoredZip([
+            { name: `${baseName}.gltf`, data: gltfBytes },
+            ...Object.entries(jsonDocument.resources).map(([name, data]) => ({ name, data })),
+        ]);
+
+        return {
+            objectUrl: createDownloadBlobUrl(zipBytes, "application/zip"),
+            sizeBytes: zipBytes.byteLength || zipBytes.length,
+            downloadFileName: `${baseName}.zip`,
+            previewObjectUrl,
+            previewBytes: previewGlb,
+        };
+    }
+
+    return {
+        objectUrl: previewObjectUrl,
+        sizeBytes: previewGlb.byteLength || previewGlb.length,
+        downloadFileName: `${baseName}.glb`,
+        previewObjectUrl,
+        previewBytes: previewGlb,
+    };
+}
+
 function getKtxEncodingOptions(settings: OptimizerSettings): KtxEncodingOptions {
     return {
         textureMode: settings.textureMode as KtxEncodingOptions["textureMode"],
@@ -321,13 +362,15 @@ export async function optimizeLoadedAsset(asset: LoadedAssetInfo, settings: Opti
             };
         }
 
+        const sceneDownload = await createSceneDownloadOutput(io, document, asset, settings);
+
         return {
             kind: "scene",
-            objectUrl,
-            sizeBytes: optimizedGlb.byteLength || optimizedGlb.length,
-            compressionLabel: (await detectAssetFeaturesFromGlbBytes(optimizedGlb)).compressionLabel,
-            downloadFileName: `${asset.primaryFileName.replace(/\.[^/.]+$/, "")}-opt.glb`,
-            previewObjectUrl: objectUrl,
+            objectUrl: sceneDownload.objectUrl,
+            sizeBytes: sceneDownload.sizeBytes,
+            compressionLabel: (await detectAssetFeaturesFromGlbBytes(sceneDownload.previewBytes)).compressionLabel,
+            downloadFileName: sceneDownload.downloadFileName,
+            previewObjectUrl: sceneDownload.previewObjectUrl,
             previewKind: "scene",
         };
     }
@@ -344,10 +387,9 @@ export async function optimizeLoadedAsset(asset: LoadedAssetInfo, settings: Opti
         totalVramBytes += ImageUtils.getVRAMByteLength(image, texture.getMimeType()) ?? 0;
     }
 
-    const optimizedGlb = await io.writeBinary(document);
-    const objectUrl = URL.createObjectURL(new Blob([optimizedGlb], { type: "model/gltf-binary" }));
-
     if (asset.kind === "texture" && settings.textureExportMode === "image") {
+        const optimizedGlb = await io.writeBinary(document);
+        const objectUrl = createDownloadBlobUrl(optimizedGlb, "model/gltf-binary");
         const optimizedTexture = document.getRoot().listTextures()[0];
         const image = optimizedTexture?.getImage();
         const mimeType = optimizedTexture?.getMimeType();
@@ -366,13 +408,15 @@ export async function optimizeLoadedAsset(asset: LoadedAssetInfo, settings: Opti
         };
     }
 
+    const sceneDownload = await createSceneDownloadOutput(io, document, asset, settings);
+
     return {
         kind: "scene",
-        objectUrl,
-        sizeBytes: optimizedGlb.byteLength || optimizedGlb.length || totalVramBytes,
-        compressionLabel: (await detectAssetFeaturesFromGlbBytes(optimizedGlb)).compressionLabel,
-        downloadFileName: `${asset.primaryFileName.replace(/\.[^/.]+$/, "")}-opt.glb`,
-        previewObjectUrl: objectUrl,
+        objectUrl: sceneDownload.objectUrl,
+        sizeBytes: sceneDownload.sizeBytes || totalVramBytes,
+        compressionLabel: (await detectAssetFeaturesFromGlbBytes(sceneDownload.previewBytes)).compressionLabel,
+        downloadFileName: sceneDownload.downloadFileName,
+        previewObjectUrl: sceneDownload.previewObjectUrl,
         previewKind: "scene",
     };
 }

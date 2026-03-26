@@ -5,6 +5,7 @@ export const DEFAULT_SETTINGS: OptimizerSettings = {
     resize: "No Resize",
     textureMode: "webp",
     textureExportMode: "image",
+    sceneExportMode: "glb",
     draco: false,
     dedup: true,
     prune: true,

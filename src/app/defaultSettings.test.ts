@@ -7,6 +7,7 @@ describe("DEFAULT_SETTINGS", () => {
         expect(DEFAULT_SETTINGS.resize).toBe("No Resize");
         expect(DEFAULT_SETTINGS.textureMode).toBe("webp");
         expect(DEFAULT_SETTINGS.textureExportMode).toBe("image");
+        expect(DEFAULT_SETTINGS.sceneExportMode).toBe("glb");
     });
 
     it("keeps destructive or lossy geometry optimizations disabled by default", () => {

@@ -43,6 +43,10 @@ function getTextureExportLabel(exportMode: "image" | "glb-plane") {
     return exportMode === "image" ? "image" : "GLB plane";
 }
 
+function getSceneExportLabel(exportMode: OptimizerSettings["sceneExportMode"]) {
+    return exportMode === "gltf-zip" ? "zipped GLTF" : "GLB";
+}
+
 export function getExpectedDownloadFileName(
     asset: { kind: LoadedAssetKind; primaryFileName: string },
     settings: OptimizerSettings
@@ -60,7 +64,7 @@ export function getExpectedDownloadFileName(
         return `${baseName}-opt${extension}`;
     }
 
-    return `${baseName}-opt.glb`;
+    return settings.sceneExportMode === "gltf-zip" ? `${baseName}-opt.zip` : `${baseName}-opt.glb`;
 }
 
 export function getCompressionConflictWarning(
@@ -416,7 +420,7 @@ export function useOptimizationController({
                     ? settings.textureExportMode === "image"
                         ? "Texture-only inputs are optimized through a generated plane scene. Download exports the image, while the compare preview stays scene-based."
                         : "Texture-only inputs are wrapped on a preview plane and exported as optimized `.glb` output."
-                    : compressionConflictWarning || "Optimization currently exports `.glb` output only.",
+                    : compressionConflictWarning,
         }));
 
         try {
@@ -453,12 +457,12 @@ export function useOptimizationController({
                     ...current,
                     optimizedLabel: formatMegabytes(result.sizeBytes),
                     optimizedCompression: result.compressionLabel,
-                    message:
-                        asset.kind === "texture"
-                            ? settings.textureExportMode === "image"
-                                ? "Texture optimization complete. The optimized image is ready to download, and the updated preview plane is shown on the right."
-                                : "Texture optimization complete. The optimized GLB plane is ready to download."
-                            : "Optimization complete. The optimized GLB is ready to download.",
+                        message:
+                            asset.kind === "texture"
+                                ? settings.textureExportMode === "image"
+                                    ? "Texture optimization complete. The optimized image is ready to download, and the updated preview plane is shown on the right."
+                                    : "Texture optimization complete. The optimized GLB plane is ready to download."
+                            : `Optimization complete. The optimized ${getSceneExportLabel(settings.sceneExportMode)} is ready to download.`,
                 }));
             } finally {
                 renderingSuspension?.dispose();
@@ -524,11 +528,13 @@ export function useOptimizationController({
                     activeAsset?.kind === "texture" && settings.textureExportMode === "image"
                         ? `Preview compare complete: ${result.mismatchedPixels} mismatched pixels, ${result.errorPercentage}% error between the source plane and optimized preview plane.`
                         : `Screenshot compare complete: ${result.mismatchedPixels} mismatched pixels, ${result.errorPercentage}% error.`,
+                warning: "",
             }));
         } catch (error) {
             setStatus((current) => ({
                 ...current,
                 message: error instanceof Error ? error.message : "Screenshot compare failed.",
+                warning: "",
             }));
         } finally {
             setIsComparing(false);

@@ -26,6 +26,11 @@ export function getChosenSettingsRows(settings: OptimizerSettings, activeAssetKi
     }
 
     if (activeAssetKind !== "texture") {
+        rows.push({
+            label: "Export",
+            value: settings.sceneExportMode === "gltf-zip" ? "GLTF ZIP" : "GLB",
+        });
+
         const basicTransforms = [
             settings.dedup && "Dedup",
             settings.prune && "Prune",

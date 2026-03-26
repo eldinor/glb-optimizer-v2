@@ -75,7 +75,6 @@ export function App() {
         viewerOptimizedAsset,
         sourceSceneVersion,
         isOptimizing,
-        compareState,
         isComparing,
         sourceAssetInfo,
         activeAssetKind,
@@ -429,6 +428,29 @@ export function App() {
                                             </button>
                                         </>
                                     )}
+                                    {activeAssetKind === "scene" ? (
+                                        <label className="topExportModeToggle" title="Download zipped GLTF instead of GLB">
+                                            <input
+                                                type="checkbox"
+                                                checked={settings.sceneExportMode === "gltf-zip"}
+                                                onChange={(event) => {
+                                                    const checked = event.target.checked;
+                                                    setSettings((current) => ({
+                                                        ...current,
+                                                        sceneExportMode: checked ? "gltf-zip" : "glb",
+                                                    }));
+                                                    setStatus((current) => ({
+                                                        ...current,
+                                                        message: checked
+                                                            ? "Scene download mode set to zipped GLTF. Preview remains GLB."
+                                                            : "Scene download mode set to GLB.",
+                                                        warning: "",
+                                                    }));
+                                                }}
+                                            />
+                                            <span>GLTF</span>
+                                        </label>
+                                    ) : null}
                                 </span>
                             ) : (
                                 <span className="topPlaceholderSecondary">Awaiting optimized output</span>
@@ -539,7 +561,7 @@ export function App() {
                             <h3>Compare View</h3>
                             <p>The left half shows the source scene. The right half shows the optimized preview scene. Screenshot compare overlays the diff image on the optimized side.</p>
                             <h3>Files</h3>
-                            <p>Use Open or drag files onto the render area. `.glb` and `.gltf` are optimized to `.glb`. Standalone PNG, JPG, JPEG, and WEBP textures can be optimized through a generated plane and exported either as an image or as a GLB plane.</p>
+                            <p>Use Open or drag files onto the render area. `.glb` and `.gltf` scenes can be optimized for GLB download or zipped GLTF download. Standalone PNG, JPG, JPEG, and WEBP textures can be optimized through a generated plane and exported either as an image or as a GLB plane.</p>
                         </div>
                     </div>
                 </div>
@@ -794,12 +816,6 @@ export function App() {
                     </button>
                 </div>
             </footer>
-
-            {compareState ? (
-                <div className="compareBadge">
-                    {compareState.mismatchedPixels} mismatched pixels, {compareState.errorPercentage}% error
-                </div>
-            ) : null}
         </div>
         </FluentProvider>
     );

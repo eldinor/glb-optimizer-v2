@@ -1,12 +1,14 @@
 export type TextureOutputMode = "keep" | "webp" | "png" | "ktx2-uastc" | "ktx2-etc1s" | "ktx2-mix" | "ktx2-user";
 export type LoadedAssetKind = "scene" | "texture";
 export type TextureExportMode = "image" | "glb-plane";
+export type SceneExportMode = "glb" | "gltf-zip";
 
 export interface OptimizerSettings {
     timeToWaitBeforeSuspend: number;
     resize: "No Resize" | "2048" | "1024" | "512" | "256";
     textureMode: TextureOutputMode;
     textureExportMode: TextureExportMode;
+    sceneExportMode: SceneExportMode;
     draco: boolean;
     dedup: boolean;
     prune: boolean;
