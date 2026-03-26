@@ -22,6 +22,7 @@ import { SettingsPanel } from "../components/SettingsPanel";
 import { ViewerCanvas, type ViewerCanvasHandle } from "../components/ViewerCanvas";
 import { AnimationControls } from "../components/AnimationControls";
 import { AssetInfoPanel } from "../components/AssetInfoPanel";
+import { HelpOverlay } from "../components/HelpOverlay";
 import type { AnimationControlsController, AnimationControlsState } from "../components/AnimationControls.types";
 import { getChosenSettingsRows } from "../components/ChosenSettingsPanel";
 import { ENVIRONMENT_PRESETS } from "./environmentPresets";
@@ -379,7 +380,32 @@ export function App() {
                     </div>
                     <div className="topColumn topColumnConverted">
                         <div className="topPlaceholder">
-                            <span className="topPlaceholderLabel">Converted</span>
+                            <span className="topPlaceholderLabelRow">
+                                <span className="topPlaceholderLabel">Converted</span>
+                                {activeAssetKind === "scene" ? (
+                                    <label className="topExportModeToggle" title="Download zipped GLTF instead of GLB">
+                                        <input
+                                            type="checkbox"
+                                            checked={settings.sceneExportMode === "gltf-zip"}
+                                            onChange={(event) => {
+                                                const checked = event.target.checked;
+                                                setSettings((current) => ({
+                                                    ...current,
+                                                    sceneExportMode: checked ? "gltf-zip" : "glb",
+                                                }));
+                                                setStatus((current) => ({
+                                                    ...current,
+                                                    message: checked
+                                                        ? "Scene download mode set to zipped GLTF. Preview remains GLB."
+                                                        : "Scene download mode set to GLB.",
+                                                    warning: "",
+                                                }));
+                                            }}
+                                        />
+                                        <span>GLTF</span>
+                                    </label>
+                                ) : null}
+                            </span>
                             <strong>{status.optimizedLabel}</strong>
                             {resolvedDownloadFileName ? (
                                 <span className="topPlaceholderSecondary topEditableFileName">
@@ -428,29 +454,6 @@ export function App() {
                                             </button>
                                         </>
                                     )}
-                                    {activeAssetKind === "scene" ? (
-                                        <label className="topExportModeToggle" title="Download zipped GLTF instead of GLB">
-                                            <input
-                                                type="checkbox"
-                                                checked={settings.sceneExportMode === "gltf-zip"}
-                                                onChange={(event) => {
-                                                    const checked = event.target.checked;
-                                                    setSettings((current) => ({
-                                                        ...current,
-                                                        sceneExportMode: checked ? "gltf-zip" : "glb",
-                                                    }));
-                                                    setStatus((current) => ({
-                                                        ...current,
-                                                        message: checked
-                                                            ? "Scene download mode set to zipped GLTF. Preview remains GLB."
-                                                            : "Scene download mode set to GLB.",
-                                                        warning: "",
-                                                    }));
-                                                }}
-                                            />
-                                            <span>GLTF</span>
-                                        </label>
-                                    ) : null}
                                 </span>
                             ) : (
                                 <span className="topPlaceholderSecondary">Awaiting optimized output</span>
@@ -545,27 +548,7 @@ export function App() {
                 </div>
             ) : null}
 
-            {helpOpen ? (
-                <div className="overlayContainer">
-                    <div className="helpOverlay">
-                        <div className="overlayHeader">
-                            <h2>Help</h2>
-                            <Button className="overlayClose" appearance="subtle" onClick={() => setHelpOpen(false)}>
-                                Close
-                            </Button>
-                        </div>
-                        <div className="helpContent">
-                            <p>Open a scene or supported texture, adjust settings, then run optimization or conversion before downloading the result.</p>
-                            <h3>Basic Optimization</h3>
-                            <p>Dedup, Prune, Flatten, Join, Resample, Weld, Simplify, Quantize, Reorder, Meshopt, and KTX2 texture modes are available from Settings.</p>
-                            <h3>Compare View</h3>
-                            <p>The left half shows the source scene. The right half shows the optimized preview scene. Screenshot compare overlays the diff image on the optimized side.</p>
-                            <h3>Files</h3>
-                            <p>Use Open or drag files onto the render area. `.glb` and `.gltf` scenes can be optimized for GLB download or zipped GLTF download. Standalone PNG, JPG, JPEG, and WEBP textures can be optimized through a generated plane and exported either as an image or as a GLB plane.</p>
-                        </div>
-                    </div>
-                </div>
-            ) : null}
+            <HelpOverlay open={helpOpen} onClose={() => setHelpOpen(false)} />
 
             {userSettingsOpen ? (
                 <div className="overlayContainer">
