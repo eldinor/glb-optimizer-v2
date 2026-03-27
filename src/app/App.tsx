@@ -552,9 +552,19 @@ export function App() {
                 {status.warning ? <div className="topInfoSecondary">{status.warning}</div> : null}
             </div>
 
-            <div className="leftRail">
-                <AssetInfoPanel info={sourceAssetInfo} />
-            </div>
+            {!settings.alwaysHideAssetInfo ? (
+                <div className="leftRail">
+                    <AssetInfoPanel
+                        info={sourceAssetInfo}
+                        className={[
+                            settings.transparentAssetInfo ? "isTransparent" : "",
+                            settings.glassAssetInfo ? "isGlass" : "",
+                        ]
+                            .filter(Boolean)
+                            .join(" ")}
+                    />
+                </div>
+            ) : null}
 
             {settingsOpen ? (
                 <div className="overlayContainer settingsOverlayContainer" onClick={() => setSettingsOpen(false)}>
@@ -617,6 +627,54 @@ export function App() {
                             {userSettingsTab === "general" ? (
                                 <>
                                     <h3>Output</h3>
+                                    <label className="userSettingsField userSettingsCheckboxField">
+                                        <span className="userSettingsLabel">Always hide Asset Info</span>
+                                        <label className="userSettingsCheckbox">
+                                            <input
+                                                type="checkbox"
+                                                checked={settings.alwaysHideAssetInfo}
+                                                onChange={(event) =>
+                                                    setSettings((current) => ({
+                                                        ...current,
+                                                        alwaysHideAssetInfo: event.target.checked,
+                                                    }))
+                                                }
+                                            />
+                                            <span>Keep Asset Info hidden</span>
+                                        </label>
+                                    </label>
+                                    <label className="userSettingsField userSettingsCheckboxField">
+                                        <span className="userSettingsLabel">Transparent Asset Info</span>
+                                        <label className="userSettingsCheckbox">
+                                            <input
+                                                type="checkbox"
+                                                checked={settings.transparentAssetInfo}
+                                                onChange={(event) =>
+                                                    setSettings((current) => ({
+                                                        ...current,
+                                                        transparentAssetInfo: event.target.checked,
+                                                    }))
+                                                }
+                                            />
+                                            <span>Use transparent Asset Info panel</span>
+                                        </label>
+                                    </label>
+                                    <label className="userSettingsField userSettingsCheckboxField">
+                                        <span className="userSettingsLabel">Use glass Asset Info panel</span>
+                                        <label className="userSettingsCheckbox">
+                                            <input
+                                                type="checkbox"
+                                                checked={settings.glassAssetInfo}
+                                                onChange={(event) =>
+                                                    setSettings((current) => ({
+                                                        ...current,
+                                                        glassAssetInfo: event.target.checked,
+                                                    }))
+                                                }
+                                            />
+                                            <span>Enable blur/glass effect for Asset Info</span>
+                                        </label>
+                                    </label>
                                     <label className="userSettingsField">
                                         <span className="userSettingsLabel">Texture Export</span>
                                         <select

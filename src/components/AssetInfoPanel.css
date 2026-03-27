@@ -1,11 +1,33 @@
 .assetInfoSidebar {
-.assetInfoSidebar {
+    --asset-info-dock-handle-width: 44px;
+    position: relative;
     width: 100%;
     max-height: 100%;
     overflow: auto;
     border: 1px solid rgba(255, 255, 255, 0.08);
     background: rgb(32, 25, 54);
     box-shadow: 0 18px 40px rgba(0, 0, 0, 0.24);
+    transition: transform 180ms ease, width 180ms ease;
+}
+
+.assetInfoSidebar.isTransparent {
+    border-color: rgba(255, 255, 255, 0.04);
+    background: rgba(7, 12, 19, 0.18);
+    box-shadow: none;
+}
+
+.assetInfoSidebar.isGlass {
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+.assetInfoSidebar.isDockCollapsed {
+    width: var(--asset-info-dock-handle-width);
+    overflow: hidden;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    transform: none;
 }
 
 .assetInfoSidebarHeader {
@@ -20,6 +42,27 @@
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
+.assetInfoSidebar.isTransparent .assetInfoSidebarHeader,
+.assetInfoSidebar.isTransparent .assetInfoSectionToggle {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.assetInfoSidebar.isTransparent .assetInfoCompactStatsRow,
+.assetInfoSidebar.isTransparent .assetInfoExtensionColumns,
+.assetInfoSidebar.isTransparent .assetInfoRow,
+.assetInfoSidebar.isTransparent .assetInfoExtensionGroup,
+.assetInfoSidebar.isTransparent .assetInfoSectionBlock {
+    border-color: rgba(255, 255, 255, 0.04);
+}
+
+.assetInfoSidebar.isDockCollapsed .assetInfoSidebarHeader {
+    justify-content: center;
+    padding: 0;
+    background: transparent;
+    border-bottom: 0;
+    width: var(--asset-info-dock-handle-width);
+}
+
 .assetInfoPanelLabel {
     display: block;
     margin-bottom: 0;
@@ -28,6 +71,12 @@
     letter-spacing: 0.08em;
     font-weight: 600;
     text-transform: uppercase;
+}
+
+.assetInfoHeaderControls {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
 }
 
 .assetInfoPanel {
@@ -90,8 +139,24 @@
     font: inherit;
 }
 
+.assetInfoSidebar.isDockCollapsed .assetInfoHeaderToggle {
+    width: var(--asset-info-dock-handle-width);
+    height: 36px;
+}
+
 .assetInfoHeaderToggle:hover {
     background: rgba(255, 255, 255, 0.08);
+}
+
+.assetInfoDockChevron {
+    display: inline-block;
+    font-size: 1rem;
+    line-height: 1;
+    transition: transform 160ms ease;
+}
+
+.assetInfoDockChevron.isCollapsed {
+    transform: rotate(180deg);
 }
 
 .assetInfoSectionToggle {

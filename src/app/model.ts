@@ -5,6 +5,9 @@ export type SceneExportMode = "glb" | "gltf-zip";
 
 export interface OptimizerSettings {
     timeToWaitBeforeSuspend: number;
+    alwaysHideAssetInfo: boolean;
+    transparentAssetInfo: boolean;
+    glassAssetInfo: boolean;
     resize: "No Resize" | "2048" | "1024" | "512" | "256";
     textureMode: TextureOutputMode;
     textureExportMode: TextureExportMode;

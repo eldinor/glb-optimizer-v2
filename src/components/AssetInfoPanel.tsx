@@ -13,6 +13,8 @@ interface AssetInfoPanelProps {
 const URL_PATTERN = /https?:\/\/[^\s]+/g;
 const LEADING_URL_TRIM = /^[([{'"`]+/;
 const TRAILING_URL_TRIM = /[)\]}",;'`!?]+$/;
+const CHEVRON = "\u25BE";
+const DOCK_CHEVRON = "\u2039";
 
 function renderLinkedText(value: string): ReactNode {
     const matches = Array.from(value.matchAll(URL_PATTERN));
@@ -27,7 +29,7 @@ function renderLinkedText(value: string): ReactNode {
         const rawUrl = match[0];
         const matchIndex = match.index ?? 0;
         let urlStart = matchIndex;
-        let urlEnd = matchIndex + rawUrl.length;
+        const urlEnd = matchIndex + rawUrl.length;
         const leadingTrimmed = rawUrl.match(LEADING_URL_TRIM)?.[0] ?? "";
         const trailingTrimmed = rawUrl.match(TRAILING_URL_TRIM)?.[0] ?? "";
 
@@ -99,6 +101,7 @@ export function AssetInfoPanel({ info, title = "Asset Info", className = "" }: A
     }
 
     const rows = formatGltfAssetInfoRows(info);
+    const [panelCollapsed, setPanelCollapsed] = useState(false);
     const [metadataCollapsed, setMetadataCollapsed] = useState(false);
     const [sceneStatsCollapsed, setSceneStatsCollapsed] = useState(false);
     const renderedSections: ReactNode[] = [];
@@ -113,12 +116,6 @@ export function AssetInfoPanel({ info, title = "Asset Info", className = "" }: A
     const compactSceneStatsLabels = new Set(["Nodes", "Meshes", "Primitives", "Materials", "Textures", "Images"]);
     const compactSceneStatsTwoColumnLabels = new Set(["Animations", "Skins"]);
     const compactSceneStatsLastTwoColumnLabels = new Set(["Cameras", "Lights"]);
-    const hasSceneStatsSection =
-        compactSceneStatsRows.length > 0 ||
-        compactSceneStatsTwoColumnRows.length > 0 ||
-        compactSceneStatsLastTwoColumnRows.length > 0 ||
-        sceneStatsRows.length > 0 ||
-        info.sceneCount > 0;
 
     for (let index = 0; index < rows.length; index += 1) {
         const row = rows[index];
@@ -153,11 +150,11 @@ export function AssetInfoPanel({ info, title = "Asset Info", className = "" }: A
             continue;
         }
 
-        const renderedRow = renderDefaultRow(row, index);
-
         if (row.label === "Scenes") {
             continue;
         }
+
+        const renderedRow = renderDefaultRow(row, index);
 
         if (compactSceneStatsLabels.has(row.label ?? "")) {
             compactSceneStatsRows.push(row);
@@ -191,63 +188,84 @@ export function AssetInfoPanel({ info, title = "Asset Info", className = "" }: A
         renderedSections.push(renderedRow);
     }
 
+    const hasSceneStatsSection =
+        compactSceneStatsRows.length > 0 ||
+        compactSceneStatsTwoColumnRows.length > 0 ||
+        compactSceneStatsLastTwoColumnRows.length > 0 ||
+        sceneStatsRows.length > 0 ||
+        info.sceneCount > 0;
+
     return (
-        <aside className={`assetInfoSidebar ${className}`.trim()}>
+        <aside className={`assetInfoSidebar${panelCollapsed ? " isDockCollapsed" : ""} ${className}`.trim()}>
             <div className="assetInfoSidebarHeader">
-                <span className="assetInfoPanelLabel">{title}</span>
-                {collapsibleMetadataRows.length ? (
+                {!panelCollapsed ? <span className="assetInfoPanelLabel">{title}</span> : null}
+                <div className="assetInfoHeaderControls">
                     <button
                         type="button"
                         className="assetInfoHeaderToggle"
-                        onClick={() => setMetadataCollapsed((current) => !current)}
-                        aria-expanded={!metadataCollapsed}
+                        onClick={() => setPanelCollapsed((current) => !current)}
+                        aria-expanded={!panelCollapsed}
+                        aria-label={panelCollapsed ? "Expand asset info panel" : "Collapse asset info panel"}
+                        title={panelCollapsed ? "Expand panel" : "Collapse panel"}
                     >
-                        <span className={`assetInfoCollapseChevron${metadataCollapsed ? " isCollapsed" : ""}`}>▾</span>
+                        <span className={`assetInfoDockChevron${panelCollapsed ? " isCollapsed" : ""}`}>{DOCK_CHEVRON}</span>
                     </button>
-                ) : null}
-            </div>
-            <div className="assetInfoPanel">
-                {!metadataCollapsed ? collapsibleMetadataRows : null}
-                {hasSceneStatsSection ? (
-                    <div className="assetInfoSectionBlock">
+                    {!panelCollapsed && collapsibleMetadataRows.length ? (
                         <button
                             type="button"
-                            className="assetInfoSectionToggle"
-                            onClick={() => setSceneStatsCollapsed((current) => !current)}
-                            aria-expanded={!sceneStatsCollapsed}
+                            className="assetInfoHeaderToggle"
+                            onClick={() => setMetadataCollapsed((current) => !current)}
+                            aria-expanded={!metadataCollapsed}
+                            aria-label={metadataCollapsed ? "Expand asset metadata" : "Collapse asset metadata"}
+                            title={metadataCollapsed ? "Expand asset metadata" : "Collapse asset metadata"}
                         >
-                            <span className="assetInfoSectionToggleTitle">Scene Stats</span>
-                            <span className="assetInfoSectionToggleGrid">
-                                <span className="assetInfoSectionToggleGridCell" aria-hidden="true" />
-                                <span className="assetInfoSectionToggleGridCell">
-                                    <span className="assetInfoCompactStatCell assetInfoCompactStatCellHeader">
-                                        <span className="assetInfoCompactStatLabel">Scenes</span>
-                                        <span className="assetInfoCompactStatValue">{info.sceneCount}</span>
-                                    </span>
-                                </span>
-                                <span className="assetInfoSectionToggleGridCell" aria-hidden="true" />
-                            </span>
-                            <span className={`assetInfoCollapseChevron${sceneStatsCollapsed ? " isCollapsed" : ""}`}>▾</span>
+                            <span className={`assetInfoCollapseChevron${metadataCollapsed ? " isCollapsed" : ""}`}>{CHEVRON}</span>
                         </button>
-                        {!sceneStatsCollapsed ? (
-                            <>
-                                {compactSceneStatsRows.length ? (
-                                    renderCompactStatsRow(compactSceneStatsRows, "assetInfoCompactStatsRow")
-                                ) : null}
-                                {compactSceneStatsTwoColumnRows.length ? (
-                                    renderCompactStatsRow(compactSceneStatsTwoColumnRows, "assetInfoCompactStatsRow assetInfoCompactStatsRowTwo")
-                                ) : null}
-                                {compactSceneStatsLastTwoColumnRows.length ? (
-                                    renderCompactStatsRow(compactSceneStatsLastTwoColumnRows, "assetInfoCompactStatsRow assetInfoCompactStatsRowTwo")
-                                ) : null}
-                                {sceneStatsRows}
-                            </>
-                        ) : null}
-                    </div>
-                ) : null}
-                {trailingMetadataRows}
-                {renderedSections}
+                    ) : null}
+                </div>
             </div>
+            {!panelCollapsed ? (
+                <div className="assetInfoPanel">
+                    {!metadataCollapsed ? collapsibleMetadataRows : null}
+                    {hasSceneStatsSection ? (
+                        <div className="assetInfoSectionBlock">
+                            <button
+                                type="button"
+                                className="assetInfoSectionToggle"
+                                onClick={() => setSceneStatsCollapsed((current) => !current)}
+                                aria-expanded={!sceneStatsCollapsed}
+                            >
+                                <span className="assetInfoSectionToggleTitle">Scene Stats</span>
+                                <span className="assetInfoSectionToggleGrid">
+                                    <span className="assetInfoSectionToggleGridCell" aria-hidden="true" />
+                                    <span className="assetInfoSectionToggleGridCell">
+                                        <span className="assetInfoCompactStatCell assetInfoCompactStatCellHeader">
+                                            <span className="assetInfoCompactStatLabel">Scenes</span>
+                                            <span className="assetInfoCompactStatValue">{info.sceneCount}</span>
+                                        </span>
+                                    </span>
+                                    <span className="assetInfoSectionToggleGridCell" aria-hidden="true" />
+                                </span>
+                                <span className={`assetInfoCollapseChevron${sceneStatsCollapsed ? " isCollapsed" : ""}`}>{CHEVRON}</span>
+                            </button>
+                            {!sceneStatsCollapsed ? (
+                                <>
+                                    {compactSceneStatsRows.length ? renderCompactStatsRow(compactSceneStatsRows, "assetInfoCompactStatsRow") : null}
+                                    {compactSceneStatsTwoColumnRows.length
+                                        ? renderCompactStatsRow(compactSceneStatsTwoColumnRows, "assetInfoCompactStatsRow assetInfoCompactStatsRowTwo")
+                                        : null}
+                                    {compactSceneStatsLastTwoColumnRows.length
+                                        ? renderCompactStatsRow(compactSceneStatsLastTwoColumnRows, "assetInfoCompactStatsRow assetInfoCompactStatsRowTwo")
+                                        : null}
+                                    {sceneStatsRows}
+                                </>
+                            ) : null}
+                        </div>
+                    ) : null}
+                    {trailingMetadataRows}
+                    {renderedSections}
+                </div>
+            ) : null}
         </aside>
     );
 }

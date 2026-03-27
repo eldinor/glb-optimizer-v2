@@ -2,6 +2,9 @@ import type { OptimizerSettings } from "./model";
 
 export const DEFAULT_SETTINGS: OptimizerSettings = {
     timeToWaitBeforeSuspend: 1000,
+    alwaysHideAssetInfo: false,
+    transparentAssetInfo: false,
+    glassAssetInfo: false,
     resize: "No Resize",
     textureMode: "webp",
     textureExportMode: "image",
