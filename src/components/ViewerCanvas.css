@@ -31,7 +31,6 @@
 }
 
 .viewerInspectorHost.isVisible {
-    pointer-events: auto;
     visibility: visible;
 }
 

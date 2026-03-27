@@ -9,6 +9,8 @@ function createAssetInfo(overrides: Partial<GltfAssetInfo> = {}): GltfAssetInfo 
         generator: "Test Generator",
         copyright: "",
         author: "",
+        license: "",
+        source: "",
         sceneCount: 1,
         defaultSceneIndex: 0,
         nodeCount: 4,
@@ -31,11 +33,20 @@ function createAssetInfo(overrides: Partial<GltfAssetInfo> = {}): GltfAssetInfo 
 
 describe("formatGltfAssetInfoRows", () => {
     it("builds structured metadata, stats, and extension rows", () => {
-        const rows = formatGltfAssetInfoRows(createAssetInfo({ author: "Ada", copyright: "Example Corp" }));
+        const rows = formatGltfAssetInfoRows(
+            createAssetInfo({
+                author: "Ada",
+                license: "CC-BY-4.0",
+                source: "https://example.com/model",
+                copyright: "Example Corp",
+            })
+        );
 
         expect(rows).toEqual([
             { section: undefined, label: "Generator", items: ["Test Generator"], variant: "default" },
             { section: undefined, label: "Author", items: ["Ada"], variant: "default" },
+            { section: undefined, label: "License", items: ["CC-BY-4.0"], variant: "default" },
+            { section: undefined, label: "Source", items: ["https://example.com/model"], variant: "default" },
             { section: undefined, label: "Copyright", items: ["Example Corp"], variant: "default" },
             { section: "Scene Stats", label: "Scenes", items: ["1"], variant: "default" },
             { section: undefined, label: "Nodes", items: ["4"], variant: "default" },
@@ -57,6 +68,8 @@ describe("formatGltfAssetInfoRows", () => {
         const rows = formatGltfAssetInfoRows(
             createAssetInfo({
                 author: "",
+                license: "",
+                source: "",
                 copyright: "",
                 extensionsUsed: [],
                 extensionsRequired: [],
@@ -64,6 +77,8 @@ describe("formatGltfAssetInfoRows", () => {
         );
 
         expect(rows.some((row) => row.label === "Author")).toBe(false);
+        expect(rows.some((row) => row.label === "License")).toBe(false);
+        expect(rows.some((row) => row.label === "Source")).toBe(false);
         expect(rows.some((row) => row.label === "Copyright")).toBe(false);
         expect(rows.some((row) => row.label === "Used")).toBe(false);
         expect(rows.some((row) => row.label === "Required")).toBe(false);

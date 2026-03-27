@@ -6,6 +6,8 @@ export interface GltfAssetInfo {
     generator: string;
     copyright: string;
     author: string;
+    license: string;
+    source: string;
     sceneCount: number;
     defaultSceneIndex: number | null;
     nodeCount: number;
@@ -141,6 +143,12 @@ function toGltfAssetInfo(container: "GLB" | "glTF", json: unknown): GltfAssetInf
     const author =
         readNamedString(gltf.asset?.extras, ["author", "Author", "creator", "Creator", "artist", "Artist"]) ||
         readNamedString(gltf.extras, ["author", "Author", "creator", "Creator", "artist", "Artist"]);
+    const license =
+        readNamedString(gltf.asset?.extras, ["license", "License", "licence", "Licence"]) ||
+        readNamedString(gltf.extras, ["license", "License", "licence", "Licence"]);
+    const source =
+        readNamedString(gltf.asset?.extras, ["source", "Source", "url", "URL", "uri", "URI"]) ||
+        readNamedString(gltf.extras, ["source", "Source", "url", "URL", "uri", "URI"]);
 
     return {
         container,
@@ -148,6 +156,8 @@ function toGltfAssetInfo(container: "GLB" | "glTF", json: unknown): GltfAssetInf
         generator: gltf.asset?.generator ?? "Unknown",
         copyright: gltf.asset?.copyright ?? "",
         author,
+        license,
+        source,
         sceneCount: gltf.scenes?.length ?? 0,
         defaultSceneIndex: typeof gltf.scene === "number" ? gltf.scene : null,
         nodeCount: gltf.nodes?.length ?? 0,

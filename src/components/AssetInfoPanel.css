@@ -1,4 +1,5 @@
 .assetInfoSidebar {
+.assetInfoSidebar {
     width: 100%;
     max-height: 100%;
     overflow: auto;
@@ -10,9 +11,13 @@
 .assetInfoSidebarHeader {
     position: sticky;
     top: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
     padding: 8px 10px;
-    background: rgba(41, 6, 156, 0.98);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.03);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .assetInfoPanelLabel {
@@ -27,6 +32,125 @@
 
 .assetInfoPanel {
     padding: 0;
+}
+
+.assetInfoSectionBlock {
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.assetInfoCompactStatsRow {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.assetInfoCompactStatsRowTwo {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.assetInfoCompactStatCell {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 10px;
+    border-right: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.assetInfoCompactStatCell:last-child {
+    border-right: 0;
+}
+
+.assetInfoCompactStatLabel {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.assetInfoCompactStatValue {
+    color: #fff;
+    font-size: 0.82rem;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.assetInfoHeaderToggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.92);
+    cursor: pointer;
+    font: inherit;
+}
+
+.assetInfoHeaderToggle:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.assetInfoSectionToggle {
+    position: relative;
+    display: block;
+    width: 100%;
+    padding: 8px 10px;
+    border: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(255, 255, 255, 0.03);
+    color: #fff;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.74rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-align: left;
+    text-transform: uppercase;
+}
+
+.assetInfoSectionToggle:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.assetInfoSectionToggleTitle {
+    position: absolute;
+    left: 10px;
+    bottom: 8px;
+}
+
+.assetInfoSectionToggleGrid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: stretch;
+    width: 100%;
+}
+
+.assetInfoSectionToggleGridCell {
+    display: flex;
+}
+
+.assetInfoCompactStatCellHeader {
+    width: 100%;
+    padding: 0 10px;
+    border-right: 0;
+}
+
+.assetInfoSectionToggle .assetInfoCollapseChevron {
+    position: absolute;
+    right: 10px;
+    bottom: 8px;
+}
+
+.assetInfoCollapseChevron {
+    transition: transform 160ms ease;
+}
+
+.assetInfoCollapseChevron.isCollapsed {
+    transform: rotate(-90deg);
 }
 
 .assetInfoSectionHeader {
@@ -83,6 +207,19 @@
     color: #fff;
     font-size: 0.78rem;
     line-height: 1.35;
+    word-break: break-word;
+}
+
+.assetInfoLink {
+    color: #9fd3ff;
+    text-decoration: underline;
+    text-decoration-color: rgba(159, 211, 255, 0.45);
+    text-underline-offset: 0.14em;
+}
+
+.assetInfoLink:hover {
+    color: #d9efff;
+    text-decoration-color: currentColor;
 }
 
 .assetInfoExtensionGroup {
@@ -121,6 +258,19 @@
 @media (max-width: 768px) {
     .assetInfoRow {
         flex-direction: column;
+    }
+
+    .assetInfoCompactStatsRow {
+        grid-template-columns: 1fr;
+    }
+
+    .assetInfoCompactStatCell {
+        border-right: 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .assetInfoCompactStatCell:last-child {
+        border-bottom: 0;
     }
 
     .assetInfoExtensionColumns {

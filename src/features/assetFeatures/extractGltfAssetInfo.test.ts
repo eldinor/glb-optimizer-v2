@@ -47,6 +47,8 @@ describe("extractGltfAssetInfoFromLoadedAsset", () => {
                         copyright: "Example Studio",
                         extras: {
                             author: "Ada Lovelace",
+                            license: "CC-BY-4.0",
+                            source: "https://example.com/source-model",
                         },
                     },
                     extras: {
@@ -79,6 +81,8 @@ describe("extractGltfAssetInfoFromLoadedAsset", () => {
             generator: "Unit Test Generator",
             copyright: "Example Studio",
             author: "Ada Lovelace",
+            license: "CC-BY-4.0",
+            source: "https://example.com/source-model",
             sceneCount: 1,
             defaultSceneIndex: 0,
             nodeCount: 2,
@@ -94,7 +98,7 @@ describe("extractGltfAssetInfoFromLoadedAsset", () => {
             extensionsUsed: ["EXT_texture_webp", "KHR_lights_punctual"],
             extensionsRequired: ["KHR_lights_punctual"],
             rootExtrasSummary: "author",
-            assetExtrasSummary: "author",
+            assetExtrasSummary: "author, license, source",
         });
     });
 
@@ -108,6 +112,8 @@ describe("extractGltfAssetInfoFromLoadedAsset", () => {
                     },
                     extras: {
                         creator: "Root Creator",
+                        licence: "MIT",
+                        url: "https://example.com/root-model",
                     },
                     scenes: [{}, {}],
                     nodes: [{}, {}, {}],
@@ -128,6 +134,8 @@ describe("extractGltfAssetInfoFromLoadedAsset", () => {
             generator: "Unknown",
             copyright: "",
             author: "Root Creator",
+            license: "MIT",
+            source: "https://example.com/root-model",
             sceneCount: 2,
             defaultSceneIndex: null,
             nodeCount: 3,
@@ -142,7 +150,7 @@ describe("extractGltfAssetInfoFromLoadedAsset", () => {
             lightCount: 0,
             extensionsUsed: [],
             extensionsRequired: [],
-            rootExtrasSummary: "creator",
+            rootExtrasSummary: "creator, licence, url",
             assetExtrasSummary: "",
         });
     });

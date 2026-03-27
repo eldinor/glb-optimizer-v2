@@ -7,7 +7,7 @@
     --app-header-height: 43px;
     --app-footer-height: 71px;
     --top-status-offset: var(--app-header-height);
-    --left-rail-offset: calc(var(--app-header-height) + 46px);
+    --left-rail-offset: var(--app-header-height);
     --overlay-top-offset: calc(var(--app-header-height) + 5px);
     --overlay-bottom-offset: calc(var(--app-footer-height) + 17px);
     position: relative;
