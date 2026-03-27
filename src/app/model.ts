@@ -5,6 +5,7 @@ export type SceneExportMode = "glb" | "gltf-zip";
 
 export interface OptimizerSettings {
     timeToWaitBeforeSuspend: number;
+    alwaysShowStatusPanel: boolean;
     alwaysHideAssetInfo: boolean;
     transparentAssetInfo: boolean;
     glassAssetInfo: boolean;

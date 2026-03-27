@@ -142,7 +142,10 @@ export function useOptimizationController({
     const [compareState, setCompareState] = useState<ScreenshotCompareState | null>(null);
     const [isComparing, setIsComparing] = useState(false);
     const [sourceAssetInfo, setSourceAssetInfo] = useState<GltfAssetInfo | null>(null);
+    const [optimizedAssetInfo, setOptimizedAssetInfo] = useState<GltfAssetInfo | null>(null);
     const [sourceAssetFeatures, setSourceAssetFeatures] = useState<AssetFeatures | null>(null);
+    const [sourceSizeBytes, setSourceSizeBytes] = useState<number | null>(null);
+    const [optimizedSizeBytes, setOptimizedSizeBytes] = useState<number | null>(null);
     const [activeAssetKind, setActiveAssetKind] = useState<LoadedAssetKind | null>(null);
     const [loadedPrimaryFileName, setLoadedPrimaryFileName] = useState("");
     const [editedDownloadFileName, setEditedDownloadFileName] = useState("");
@@ -266,6 +269,22 @@ export function useOptimizationController({
         }));
     }, []);
 
+    const loadOptimizedAssetInfo = useCallback(async (previewUrl: string, previewKind: LoadedAssetKind, downloadFileName: string) => {
+        if (previewKind !== "scene") {
+            setOptimizedAssetInfo(null);
+            return;
+        }
+
+        const previewBytes = new Uint8Array(await (await fetch(previewUrl)).arrayBuffer());
+        const previewFile = new File([previewBytes], downloadFileName.replace(/\.[^/.]+$/, ".glb"), { type: "model/gltf-binary" });
+        const info = await extractGltfAssetInfoFromLoadedAsset({
+            kind: "scene",
+            primaryFileName: previewFile.name,
+            files: [previewFile],
+        });
+        setOptimizedAssetInfo(info);
+    }, []);
+
     const getOptimizationSourceFeatures = useCallback(async (asset: LoadedAssetInfo) => {
         if (asset.kind !== "scene") {
             return null;
@@ -288,6 +307,7 @@ export function useOptimizationController({
             setCompareState(null);
             setActiveAssetKind(asset.kind);
             setLoadedPrimaryFileName(asset.primaryFileName);
+            setSourceSizeBytes(asset.files.reduce((sum, file) => sum + file.size, 0));
 
             if (asset.kind === "scene") {
                 void detectAssetFeaturesFromLoadedAsset(asset).then((features) => {
@@ -317,6 +337,8 @@ export function useOptimizationController({
                     }
                     setOptimizedAsset(null);
                 }
+                setOptimizedAssetInfo(null);
+                setOptimizedSizeBytes(null);
                 setEditedDownloadFileName("");
                 setDownloadFileNameDraft("");
                 setIsEditingDownloadFileName(false);
@@ -378,6 +400,8 @@ export function useOptimizationController({
                         previewUrl: result.previewObjectUrl,
                         previewKind: result.previewKind,
                     });
+                    setOptimizedSizeBytes(result.sizeBytes);
+                    void loadOptimizedAssetInfo(result.previewObjectUrl, result.previewKind, result.downloadFileName);
                     setEditedDownloadFileName(result.downloadFileName);
                     setDownloadFileNameDraft(result.downloadFileName);
                     setIsEditingDownloadFileName(false);
@@ -474,6 +498,8 @@ export function useOptimizationController({
                     previewUrl: result.previewObjectUrl,
                     previewKind: result.previewKind,
                 });
+                setOptimizedSizeBytes(result.sizeBytes);
+                void loadOptimizedAssetInfo(result.previewObjectUrl, result.previewKind, result.downloadFileName);
                 setEditedDownloadFileName(result.downloadFileName);
                 setDownloadFileNameDraft(result.downloadFileName);
                 setIsEditingDownloadFileName(false);
@@ -576,7 +602,10 @@ export function useOptimizationController({
         compareState,
         isComparing,
         sourceAssetInfo,
+        optimizedAssetInfo,
         sourceAssetFeatures,
+        sourceSizeBytes,
+        optimizedSizeBytes,
         activeAssetKind,
         loadedPrimaryFileName,
         editedDownloadFileName,

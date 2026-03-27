@@ -73,6 +73,12 @@
     text-transform: uppercase;
 }
 
+.assetInfoCenterControls {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
 .assetInfoHeaderControls {
     display: inline-flex;
     align-items: center;
@@ -125,6 +131,35 @@
     white-space: nowrap;
 }
 
+.assetInfoStatValueWithDelta {
+    display: inline-grid;
+    grid-template-columns: auto 2.2em;
+    align-items: baseline;
+    justify-items: end;
+    column-gap: 6px;
+}
+
+.assetInfoStatValueText {
+    min-width: 0;
+}
+
+.assetInfoStatDelta {
+    font-size: 0.74rem;
+    text-align: right;
+}
+
+.assetInfoStatDelta--smaller {
+    color: #6ee7a8;
+}
+
+.assetInfoStatDelta--bigger {
+    color: #ff8f8f;
+}
+
+.assetInfoStatDelta--placeholder {
+    visibility: hidden;
+}
+
 .assetInfoHeaderToggle {
     display: inline-flex;
     align-items: center;
@@ -148,15 +183,14 @@
     background: rgba(255, 255, 255, 0.08);
 }
 
-.assetInfoDockChevron {
-    display: inline-block;
-    font-size: 1rem;
-    line-height: 1;
-    transition: transform 160ms ease;
+.assetInfoIcon {
+    width: 16px;
+    height: 16px;
+    flex: 0 0 auto;
 }
 
-.assetInfoDockChevron.isCollapsed {
-    transform: rotate(180deg);
+.assetInfoDockChevron {
+    display: block;
 }
 
 .assetInfoSectionToggle {
@@ -211,11 +245,7 @@
 }
 
 .assetInfoCollapseChevron {
-    transition: transform 160ms ease;
-}
-
-.assetInfoCollapseChevron.isCollapsed {
-    transform: rotate(-90deg);
+    display: block;
 }
 
 .assetInfoSectionHeader {

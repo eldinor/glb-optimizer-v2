@@ -1,4 +1,5 @@
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
+import { ChevronDownRegular, ChevronLeftRegular, ChevronRightRegular, DismissRegular } from "@fluentui/react-icons";
 import type { GltfAssetInfo } from "../features/assetFeatures/extractGltfAssetInfo";
 import { formatGltfAssetInfoRows } from "../features/assetFeatures/formatGltfAssetInfo";
 import type { GltfAssetInfoRow } from "../features/assetFeatures/formatGltfAssetInfo";
@@ -6,15 +7,22 @@ import "./AssetInfoPanel.css";
 
 interface AssetInfoPanelProps {
     info: GltfAssetInfo | null;
+    compareInfo?: GltfAssetInfo | null;
     title?: string;
     className?: string;
+    onCloseAllPanels?: () => void;
+    metadataCollapsed?: boolean;
+    onMetadataCollapsedChange?: (nextValue: boolean) => void;
+    sceneStatsCollapsed?: boolean;
+    onSceneStatsCollapsedChange?: (nextValue: boolean) => void;
+    panelCollapsed?: boolean;
+    onPanelCollapsedChange?: (nextValue: boolean) => void;
+    dockSide?: "left" | "right";
 }
 
 const URL_PATTERN = /https?:\/\/[^\s]+/g;
 const LEADING_URL_TRIM = /^[([{'"`]+/;
 const TRAILING_URL_TRIM = /[)\]}",;'`!?]+$/;
-const CHEVRON = "\u25BE";
-const DOCK_CHEVRON = "\u2039";
 
 function renderLinkedText(value: string): ReactNode {
     const matches = Array.from(value.matchAll(URL_PATTERN));
@@ -78,32 +86,80 @@ function renderDefaultRow(row: GltfAssetInfoRow, index: number): ReactNode {
     );
 }
 
-function renderCompactStatCell(row: GltfAssetInfoRow): ReactNode {
+const COMPARABLE_SCENE_STAT_KEYS = {
+    Nodes: "nodeCount",
+    Meshes: "meshCount",
+    Primitives: "primitiveCount",
+    Materials: "materialCount",
+    Textures: "textureCount",
+    Images: "imageCount",
+} as const satisfies Record<string, keyof GltfAssetInfo>;
+
+type ComparableSceneStatLabel = keyof typeof COMPARABLE_SCENE_STAT_KEYS;
+
+function getCompactStatDeltaInfo(row: GltfAssetInfoRow, info: GltfAssetInfo, compareInfo: GltfAssetInfo | null | undefined) {
+    const label = row.label as ComparableSceneStatLabel | undefined;
+    if (!label || !(label in COMPARABLE_SCENE_STAT_KEYS) || !compareInfo) {
+        return null;
+    }
+
+    const key = COMPARABLE_SCENE_STAT_KEYS[label];
+    const currentValue = info[key];
+    const previousValue = compareInfo[key];
+    const delta = currentValue - previousValue;
+
+    if (delta === 0) {
+        return null;
+    }
+
+    return {
+        tone: delta < 0 ? "smaller" : "bigger",
+        text: delta < 0 ? `${delta}` : `+${delta}`,
+    } as const;
+}
+
+function renderCompactStatCell(row: GltfAssetInfoRow, info: GltfAssetInfo, compareInfo?: GltfAssetInfo | null): ReactNode {
+    const deltaInfo = getCompactStatDeltaInfo(row, info, compareInfo);
     return (
         <div key={row.label ?? "stat"} className="assetInfoCompactStatCell">
             <div className="assetInfoCompactStatLabel">{row.label ?? ""}</div>
             <div className="assetInfoCompactStatValue">
                 {row.items.map((item) => (
-                    <span key={item}>{renderLinkedText(item)}</span>
+                    <span key={item} className="assetInfoStatValueWithDelta">
+                        <span className="assetInfoStatValueText">{renderLinkedText(item)}</span>
+                        <span className={`assetInfoStatDelta${deltaInfo ? ` assetInfoStatDelta--${deltaInfo.tone}` : " assetInfoStatDelta--placeholder"}`}>
+                            {deltaInfo ? deltaInfo.text : "\u00A0"}
+                        </span>
+                    </span>
                 ))}
             </div>
         </div>
     );
 }
 
-function renderCompactStatsRow(rows: GltfAssetInfoRow[], className: string): ReactNode {
-    return <div className={className}>{rows.map((row) => renderCompactStatCell(row))}</div>;
+function renderCompactStatsRow(rows: GltfAssetInfoRow[], className: string, info: GltfAssetInfo, compareInfo?: GltfAssetInfo | null): ReactNode {
+    return <div className={className}>{rows.map((row) => renderCompactStatCell(row, info, compareInfo))}</div>;
 }
 
-export function AssetInfoPanel({ info, title = "Asset Info", className = "" }: AssetInfoPanelProps) {
+export function AssetInfoPanel({
+    info,
+    compareInfo,
+    title = "Asset Info",
+    className = "",
+    onCloseAllPanels,
+    metadataCollapsed = false,
+    onMetadataCollapsedChange,
+    sceneStatsCollapsed = false,
+    onSceneStatsCollapsedChange,
+    panelCollapsed = false,
+    onPanelCollapsedChange,
+    dockSide = "left",
+}: AssetInfoPanelProps) {
     if (!info) {
         return null;
     }
 
     const rows = formatGltfAssetInfoRows(info);
-    const [panelCollapsed, setPanelCollapsed] = useState(false);
-    const [metadataCollapsed, setMetadataCollapsed] = useState(false);
-    const [sceneStatsCollapsed, setSceneStatsCollapsed] = useState(false);
     const renderedSections: ReactNode[] = [];
     const collapsibleMetadataRows: ReactNode[] = [];
     const sceneStatsRows: ReactNode[] = [];
@@ -194,32 +250,66 @@ export function AssetInfoPanel({ info, title = "Asset Info", className = "" }: A
         compactSceneStatsLastTwoColumnRows.length > 0 ||
         sceneStatsRows.length > 0 ||
         info.sceneCount > 0;
+    const DockChevronIcon =
+        dockSide === "right"
+            ? panelCollapsed
+                ? ChevronLeftRegular
+                : ChevronRightRegular
+            : panelCollapsed
+              ? ChevronRightRegular
+              : ChevronLeftRegular;
+    const MetadataChevronIcon = metadataCollapsed ? ChevronRightRegular : ChevronDownRegular;
+    const SceneStatsChevronIcon = sceneStatsCollapsed ? ChevronRightRegular : ChevronDownRegular;
 
     return (
-        <aside className={`assetInfoSidebar${panelCollapsed ? " isDockCollapsed" : ""} ${className}`.trim()}>
+        <aside className={`assetInfoSidebar assetInfoSidebar--${dockSide}${panelCollapsed ? " isDockCollapsed" : ""} ${className}`.trim()}>
             <div className="assetInfoSidebarHeader">
+                {!panelCollapsed && dockSide === "right" ? (
+                    <div className="assetInfoCenterControls">
+                        <button
+                            type="button"
+                            className="assetInfoHeaderToggle"
+                            onClick={onCloseAllPanels}
+                            aria-label="Close all asset info panels"
+                            title="Close all asset info panels"
+                        >
+                            <DismissRegular className="assetInfoIcon" />
+                        </button>
+                    </div>
+                ) : null}
                 {!panelCollapsed ? <span className="assetInfoPanelLabel">{title}</span> : null}
                 <div className="assetInfoHeaderControls">
                     <button
                         type="button"
                         className="assetInfoHeaderToggle"
-                        onClick={() => setPanelCollapsed((current) => !current)}
+                        onClick={() => onPanelCollapsedChange?.(!panelCollapsed)}
                         aria-expanded={!panelCollapsed}
                         aria-label={panelCollapsed ? "Expand asset info panel" : "Collapse asset info panel"}
                         title={panelCollapsed ? "Expand panel" : "Collapse panel"}
                     >
-                        <span className={`assetInfoDockChevron${panelCollapsed ? " isCollapsed" : ""}`}>{DOCK_CHEVRON}</span>
+                        <DockChevronIcon className="assetInfoIcon assetInfoDockChevron" />
                     </button>
                     {!panelCollapsed && collapsibleMetadataRows.length ? (
                         <button
                             type="button"
                             className="assetInfoHeaderToggle"
-                            onClick={() => setMetadataCollapsed((current) => !current)}
+                            onClick={() => onMetadataCollapsedChange?.(!metadataCollapsed)}
                             aria-expanded={!metadataCollapsed}
                             aria-label={metadataCollapsed ? "Expand asset metadata" : "Collapse asset metadata"}
                             title={metadataCollapsed ? "Expand asset metadata" : "Collapse asset metadata"}
                         >
-                            <span className={`assetInfoCollapseChevron${metadataCollapsed ? " isCollapsed" : ""}`}>{CHEVRON}</span>
+                            <MetadataChevronIcon className="assetInfoIcon assetInfoCollapseChevron" />
+                        </button>
+                    ) : null}
+                    {!panelCollapsed && dockSide === "left" ? (
+                        <button
+                            type="button"
+                            className="assetInfoHeaderToggle"
+                            onClick={onCloseAllPanels}
+                            aria-label="Close all asset info panels"
+                            title="Close all asset info panels"
+                        >
+                            <DismissRegular className="assetInfoIcon" />
                         </button>
                     ) : null}
                 </div>
@@ -232,7 +322,7 @@ export function AssetInfoPanel({ info, title = "Asset Info", className = "" }: A
                             <button
                                 type="button"
                                 className="assetInfoSectionToggle"
-                                onClick={() => setSceneStatsCollapsed((current) => !current)}
+                                onClick={() => onSceneStatsCollapsedChange?.(!sceneStatsCollapsed)}
                                 aria-expanded={!sceneStatsCollapsed}
                             >
                                 <span className="assetInfoSectionToggleTitle">Scene Stats</span>
@@ -246,16 +336,26 @@ export function AssetInfoPanel({ info, title = "Asset Info", className = "" }: A
                                     </span>
                                     <span className="assetInfoSectionToggleGridCell" aria-hidden="true" />
                                 </span>
-                                <span className={`assetInfoCollapseChevron${sceneStatsCollapsed ? " isCollapsed" : ""}`}>{CHEVRON}</span>
+                                <SceneStatsChevronIcon className="assetInfoIcon assetInfoCollapseChevron" />
                             </button>
                             {!sceneStatsCollapsed ? (
                                 <>
-                                    {compactSceneStatsRows.length ? renderCompactStatsRow(compactSceneStatsRows, "assetInfoCompactStatsRow") : null}
+                                    {compactSceneStatsRows.length
+                                        ? renderCompactStatsRow(compactSceneStatsRows, "assetInfoCompactStatsRow", info, compareInfo)
+                                        : null}
                                     {compactSceneStatsTwoColumnRows.length
-                                        ? renderCompactStatsRow(compactSceneStatsTwoColumnRows, "assetInfoCompactStatsRow assetInfoCompactStatsRowTwo")
+                                        ? renderCompactStatsRow(
+                                              compactSceneStatsTwoColumnRows,
+                                              "assetInfoCompactStatsRow assetInfoCompactStatsRowTwo",
+                                              info
+                                          )
                                         : null}
                                     {compactSceneStatsLastTwoColumnRows.length
-                                        ? renderCompactStatsRow(compactSceneStatsLastTwoColumnRows, "assetInfoCompactStatsRow assetInfoCompactStatsRowTwo")
+                                        ? renderCompactStatsRow(
+                                              compactSceneStatsLastTwoColumnRows,
+                                              "assetInfoCompactStatsRow assetInfoCompactStatsRowTwo",
+                                              info
+                                          )
                                         : null}
                                     {sceneStatsRows}
                                 </>

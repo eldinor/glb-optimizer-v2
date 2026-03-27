@@ -6,6 +6,7 @@ import {
     ArrowDownloadRegular,
     ArrowResetRegular,
     CubeCheckmarkRegular,
+    DismissRegular,
     EditFilled,
     FolderOpenRegular,
     GridRegular,
@@ -73,6 +74,11 @@ export function App() {
     const [userSettingsOpen, setUserSettingsOpen] = useState(false);
     const [userSettingsTab, setUserSettingsTab] = useState<"general" | "technical">("general");
     const [footerHidden, setFooterHidden] = useState(false);
+    const [assetInfoPanelsCollapsed, setAssetInfoPanelsCollapsed] = useState(false);
+    const [assetInfoMetadataCollapsed, setAssetInfoMetadataCollapsed] = useState(false);
+    const [assetInfoSceneStatsCollapsed, setAssetInfoSceneStatsCollapsed] = useState(false);
+    const [inspectorVisible, setInspectorVisible] = useState(false);
+    const [statusPanelVisible, setStatusPanelVisible] = useState(true);
     const [compressionPreference, setCompressionPreference] = useState<CompressionPreference>(readCompressionPreference);
     const [headerCompressionMode, setHeaderCompressionMode] = useState<"draco" | "meshopt">("draco");
     const [headerHeight, setHeaderHeight] = useState(43);
@@ -91,6 +97,9 @@ export function App() {
         isOptimizing,
         isComparing,
         sourceAssetInfo,
+        optimizedAssetInfo,
+        sourceSizeBytes,
+        optimizedSizeBytes,
         activeAssetKind,
         setEditedDownloadFileName,
         downloadFileNameDraft,
@@ -129,6 +138,36 @@ export function App() {
     }, [selectedEnvironmentId]);
     const chosenSettingsRows = useMemo(() => getChosenSettingsRows(settings, activeAssetKind), [settings, activeAssetKind]);
     const headerCompressionEnabled = settings.draco || settings.meshopt;
+    const optimizedSizeChangePercent = useMemo(() => {
+        if (!sourceSizeBytes || optimizedSizeBytes == null || sourceSizeBytes <= 0) {
+            return "";
+        }
+
+        const percent = ((optimizedSizeBytes - sourceSizeBytes) / sourceSizeBytes) * 100;
+        const rounded = Math.round(percent);
+        if (rounded > 0) {
+            return `+${rounded}%`;
+        }
+        if (rounded < 0) {
+            return `${rounded}%`;
+        }
+        return "0%";
+    }, [optimizedSizeBytes, sourceSizeBytes]);
+    const optimizedSizeChangeTone = useMemo(() => {
+        if (!sourceSizeBytes || optimizedSizeBytes == null || sourceSizeBytes <= 0) {
+            return "neutral";
+        }
+
+        if (optimizedSizeBytes < sourceSizeBytes) {
+            return "smaller";
+        }
+
+        if (optimizedSizeBytes > sourceSizeBytes) {
+            return "bigger";
+        }
+
+        return "neutral";
+    }, [optimizedSizeBytes, sourceSizeBytes]);
 
     useEffect(() => {
         if (settings.meshopt) {
@@ -153,6 +192,33 @@ export function App() {
     useEffect(() => {
         window.localStorage.setItem(USER_SETTINGS_STORAGE_KEY, compressionPreference);
     }, [compressionPreference]);
+
+    useEffect(() => {
+        if (settings.alwaysShowStatusPanel) {
+            setStatusPanelVisible(true);
+            return;
+        }
+
+        setStatusPanelVisible(true);
+        const timeoutId = window.setTimeout(() => {
+            setStatusPanelVisible(false);
+        }, 3000);
+
+        return () => {
+            window.clearTimeout(timeoutId);
+        };
+    }, [settings.alwaysShowStatusPanel, status.message, status.warning]);
+
+    useEffect(() => {
+        if (settings.transparentAssetInfo || !settings.glassAssetInfo) {
+            return;
+        }
+
+        setSettings((current) => ({
+            ...current,
+            glassAssetInfo: false,
+        }));
+    }, [setSettings, settings.glassAssetInfo, settings.transparentAssetInfo]);
 
     useEffect(() => {
         const headerElement = headerRef.current;
@@ -298,6 +364,24 @@ export function App() {
         "--app-header-height": `${headerHeight}px`,
         "--app-footer-height": `${footerHeight}px`,
     } as CSSProperties;
+    const effectiveAssetInfoPanelsCollapsed = inspectorVisible ? true : assetInfoPanelsCollapsed;
+    const handleAssetInfoPanelsCollapsedChange = (nextValue: boolean) => {
+        if (inspectorVisible) {
+            return;
+        }
+
+        setAssetInfoPanelsCollapsed(nextValue);
+    };
+    const handleCloseAllAssetInfoPanels = () => {
+        setSettings((current) => ({
+            ...current,
+            alwaysHideAssetInfo: true,
+        }));
+        setStatus((current) => ({
+            ...current,
+            message: "Asset Info panels hidden. Turn them back on in User Settings.",
+        }));
+    };
 
     return (
         <FluentProvider theme={webLightTheme} className="appProvider">
@@ -439,7 +523,12 @@ export function App() {
                                     </label>
                                 ) : null}
                             </span>
-                            <strong>{status.optimizedLabel}</strong>
+                            <div className="topSizeWithDelta">
+                                <strong>{status.optimizedLabel}</strong>
+                                {optimizedSizeChangePercent ? (
+                                    <span className={`topSizeDelta topSizeDelta--${optimizedSizeChangeTone}`}>{optimizedSizeChangePercent}</span>
+                                ) : null}
+                            </div>
                             {resolvedDownloadFileName ? (
                                 <span className="topPlaceholderSecondary topEditableFileName">
                                     {isEditingDownloadFileName ? (
@@ -547,7 +636,7 @@ export function App() {
                 </div>
             </header>
 
-            <div className="topStatusStack">
+            <div className={`topStatusStack${statusPanelVisible ? "" : " isHidden"}`}>
                 <div className="topInfo">{status.message}</div>
                 {status.warning ? <div className="topInfoSecondary">{status.warning}</div> : null}
             </div>
@@ -556,6 +645,37 @@ export function App() {
                 <div className="leftRail">
                     <AssetInfoPanel
                         info={sourceAssetInfo}
+                        dockSide="left"
+                        onCloseAllPanels={handleCloseAllAssetInfoPanels}
+                        metadataCollapsed={assetInfoMetadataCollapsed}
+                        onMetadataCollapsedChange={setAssetInfoMetadataCollapsed}
+                        sceneStatsCollapsed={assetInfoSceneStatsCollapsed}
+                        onSceneStatsCollapsedChange={setAssetInfoSceneStatsCollapsed}
+                        panelCollapsed={effectiveAssetInfoPanelsCollapsed}
+                        onPanelCollapsedChange={handleAssetInfoPanelsCollapsedChange}
+                        className={[
+                            settings.transparentAssetInfo ? "isTransparent" : "",
+                            settings.glassAssetInfo ? "isGlass" : "",
+                        ]
+                            .filter(Boolean)
+                        .join(" ")}
+                    />
+                </div>
+            ) : null}
+            {!settings.alwaysHideAssetInfo ? (
+                <div className="rightRail">
+                    <AssetInfoPanel
+                        info={optimizedAssetInfo}
+                        compareInfo={sourceAssetInfo}
+                        title="Optimized Asset Info"
+                        dockSide="right"
+                        onCloseAllPanels={handleCloseAllAssetInfoPanels}
+                        metadataCollapsed={assetInfoMetadataCollapsed}
+                        onMetadataCollapsedChange={setAssetInfoMetadataCollapsed}
+                        sceneStatsCollapsed={assetInfoSceneStatsCollapsed}
+                        onSceneStatsCollapsedChange={setAssetInfoSceneStatsCollapsed}
+                        panelCollapsed={effectiveAssetInfoPanelsCollapsed}
+                        onPanelCollapsedChange={handleAssetInfoPanelsCollapsedChange}
                         className={[
                             settings.transparentAssetInfo ? "isTransparent" : "",
                             settings.glassAssetInfo ? "isGlass" : "",
@@ -594,12 +714,17 @@ export function App() {
             <HelpOverlay open={helpOpen} onClose={() => setHelpOpen(false)} />
 
             {userSettingsOpen ? (
-                <div className="overlayContainer">
-                    <div className="panelOverlay">
+                <div className="overlayContainer settingsOverlayContainer" onClick={() => setUserSettingsOpen(false)}>
+                    <div className="panelOverlay settingsPanelOverlay" onClick={(event) => event.stopPropagation()}>
                         <div className="overlayHeader">
                             <h2>User Settings</h2>
-                            <Button className="overlayClose" appearance="subtle" onClick={() => setUserSettingsOpen(false)}>
-                                Close
+                            <Button
+                                className="overlayClose"
+                                appearance="subtle"
+                                icon={<DismissRegular />}
+                                aria-label="Close user settings"
+                                onClick={() => setUserSettingsOpen(false)}
+                            >
                             </Button>
                         </div>
                         <div className="helpContent">
@@ -628,8 +753,22 @@ export function App() {
                                 <>
                                     <h3>Output</h3>
                                     <label className="userSettingsField userSettingsCheckboxField">
-                                        <span className="userSettingsLabel">Always hide Asset Info</span>
-                                        <label className="userSettingsCheckbox">
+                                        <span className="userSettingsCheckbox userSettingsCheckboxSingleLine">
+                                            <input
+                                                type="checkbox"
+                                                checked={settings.alwaysShowStatusPanel}
+                                                onChange={(event) =>
+                                                    setSettings((current) => ({
+                                                        ...current,
+                                                        alwaysShowStatusPanel: event.target.checked,
+                                                    }))
+                                                }
+                                            />
+                                            <span>Always show status panel</span>
+                                        </span>
+                                    </label>
+                                    <label className="userSettingsField userSettingsCheckboxField">
+                                        <span className="userSettingsCheckbox userSettingsCheckboxSingleLine">
                                             <input
                                                 type="checkbox"
                                                 checked={settings.alwaysHideAssetInfo}
@@ -640,12 +779,11 @@ export function App() {
                                                     }))
                                                 }
                                             />
-                                            <span>Keep Asset Info hidden</span>
-                                        </label>
+                                            <span>Always hide Asset Info</span>
+                                        </span>
                                     </label>
                                     <label className="userSettingsField userSettingsCheckboxField">
-                                        <span className="userSettingsLabel">Transparent Asset Info</span>
-                                        <label className="userSettingsCheckbox">
+                                        <span className="userSettingsCheckbox userSettingsCheckboxSingleLine">
                                             <input
                                                 type="checkbox"
                                                 checked={settings.transparentAssetInfo}
@@ -656,15 +794,19 @@ export function App() {
                                                     }))
                                                 }
                                             />
-                                            <span>Use transparent Asset Info panel</span>
-                                        </label>
+                                            <span>Transparent Asset Info</span>
+                                        </span>
                                     </label>
                                     <label className="userSettingsField userSettingsCheckboxField">
-                                        <span className="userSettingsLabel">Use glass Asset Info panel</span>
-                                        <label className="userSettingsCheckbox">
+                                        <span
+                                            className={`userSettingsCheckbox userSettingsCheckboxSingleLine${
+                                                settings.transparentAssetInfo ? "" : " isDisabled"
+                                            }`}
+                                        >
                                             <input
                                                 type="checkbox"
                                                 checked={settings.glassAssetInfo}
+                                                disabled={!settings.transparentAssetInfo}
                                                 onChange={(event) =>
                                                     setSettings((current) => ({
                                                         ...current,
@@ -672,8 +814,8 @@ export function App() {
                                                     }))
                                                 }
                                             />
-                                            <span>Enable blur/glass effect for Asset Info</span>
-                                        </label>
+                                            <span>Use glass Asset Info panel</span>
+                                        </span>
                                     </label>
                                     <label className="userSettingsField">
                                         <span className="userSettingsLabel">Texture Export</span>
@@ -749,6 +891,7 @@ export function App() {
                     sourceSceneVersion={sourceSceneVersion}
                     onSourceAssetLoaded={handleSourceAssetLoaded}
                     onSceneInfoChange={handleSceneInfoChange}
+                    onInspectorVisibilityChange={setInspectorVisible}
                     onAnimationStateChange={handleAnimationStateChange}
                 />
             </main>

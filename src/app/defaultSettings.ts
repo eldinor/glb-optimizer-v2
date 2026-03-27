@@ -2,6 +2,7 @@ import type { OptimizerSettings } from "./model";
 
 export const DEFAULT_SETTINGS: OptimizerSettings = {
     timeToWaitBeforeSuspend: 1000,
+    alwaysShowStatusPanel: false,
     alwaysHideAssetInfo: false,
     transparentAssetInfo: false,
     glassAssetInfo: false,

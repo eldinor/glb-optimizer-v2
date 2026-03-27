@@ -108,6 +108,23 @@
     line-height: 1.15;
 }
 
+.topSizeWithDelta {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.topSizeDelta {
+    color: rgba(255, 255, 255, 0.78);
+    font-size: 0.76rem;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.topSizeDelta--smaller {
+    color: #6ee7a8;
+}
+
 .topPlaceholderSecondary {
     display: block;
     flex: 1 1 auto;
@@ -315,6 +332,14 @@
     justify-items: center;
     gap: 10px;
     pointer-events: none;
+    transition:
+        opacity 180ms ease,
+        transform 180ms ease;
+}
+
+.topStatusStack.isHidden {
+    opacity: 0;
+    transform: translateY(-8px);
 }
 
 .topInfo,
@@ -346,6 +371,17 @@
     top: var(--left-rail-offset);
     left: 0;
     z-index: 7;
+    width: min(420px, 50vw);
+    max-height: calc(100vh - var(--left-rail-offset) - var(--app-footer-height));
+}
+
+.rightRail {
+    position: absolute;
+    top: var(--left-rail-offset);
+    right: 0;
+    z-index: 7;
+    display: flex;
+    justify-content: flex-end;
     width: min(420px, 50vw);
     max-height: calc(100vh - var(--left-rail-offset) - var(--app-footer-height));
 }
@@ -599,7 +635,7 @@
     justify-content: space-between;
     gap: 12px;
     padding: 14px 16px;
-    background: rgba(41, 6, 156, 0.98);
+    background: rgba(10, 38, 108, 0.98);
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
@@ -615,6 +651,7 @@
 
 .overlayClose.fui-Button {
     color: #fff;
+    min-width: 32px;
 }
 
 .helpContent {
@@ -638,6 +675,15 @@
     align-items: center;
     gap: 8px;
     color: rgba(255, 255, 255, 0.9);
+}
+
+.userSettingsCheckboxSingleLine {
+    font-size: 0.82rem;
+    letter-spacing: 0.04em;
+}
+
+.userSettingsCheckbox.isDisabled {
+    opacity: 0.5;
 }
 
 .userSettingsTabs {
@@ -774,6 +820,11 @@
     }
 
     .leftRail {
+        width: 100vw;
+        max-height: 32vh;
+    }
+
+    .rightRail {
         width: 100vw;
         max-height: 32vh;
     }
