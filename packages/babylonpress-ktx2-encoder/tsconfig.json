@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "esModuleInterop": true,
+    "useDefineForClassFields": true,
+    "module": "ES2022",
+    "skipLibCheck": true,
+
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": false,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "forceConsistentCasingInFileNames": true,
+
+    "strict": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "types": ["node"],
+    "typeRoots": ["./node_modules/@types"],
+    "noFallthroughCasesInSwitch": true,
+    "emitDeclarationOnly": false,
+    "declaration": true,
+    "rootDir": "src",
+    "declarationDir": "types",
+    "outDir": "dist",
+  },
+  "include": ["./src/*", "./src/web/*", "./src/node/*", "./src/gltf-transform/*"],
+  "references": [{ "path": "./tsconfig.node.json" }]
+}
