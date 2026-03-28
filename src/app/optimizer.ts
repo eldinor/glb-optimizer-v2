@@ -9,6 +9,27 @@ import { ALL_EXTENSIONS, KHRDracoMeshCompression } from "@gltf-transform/extensi
 import { ImageUtils, Logger, WebIO, type JSONDocument } from "@gltf-transform/core";
 import { MeshoptDecoder, MeshoptEncoder } from "meshoptimizer";
 import { createStoredZip } from "./zip";
+import { createOptimizerWorkerPool } from "../features/optimizer/workerPool";
+import type { OptimizerWorkerAsset, OptimizerWorkerJobProgress, OptimizerWorkerJobRequest, OptimizerWorkerJobSuccess } from "../features/optimizer/workerShared";
+
+let optimizerWorkerPool: ReturnType<typeof createOptimizerWorkerPool> | null = null;
+
+export interface OptimizeLoadedAssetOptions {
+    onProgress?: (progress: OptimizerWorkerJobProgress) => void;
+}
+
+function emitOptimizationProgress(
+    asset: LoadedAssetInfo,
+    options: OptimizeLoadedAssetOptions | undefined,
+    stage: OptimizerWorkerJobProgress["stage"],
+    message: string
+) {
+    options?.onProgress?.({
+        jobId: asset.primaryFileName,
+        stage,
+        message,
+    });
+}
 
 function getFileExtension(name: string): string {
     const index = name.lastIndexOf(".");
@@ -171,6 +192,84 @@ function createDownloadBlobUrl(bytes: Uint8Array, mimeType: string) {
     return URL.createObjectURL(new Blob([bytes], { type: mimeType }));
 }
 
+function getOptimizerWorkerPool() {
+    optimizerWorkerPool ??= createOptimizerWorkerPool({ size: 1 });
+    return optimizerWorkerPool;
+}
+
+async function createOptimizerWorkerAsset(asset: LoadedAssetInfo): Promise<OptimizerWorkerAsset> {
+    return {
+        kind: asset.kind,
+        primaryFileName: asset.primaryFileName,
+        files: await Promise.all(
+            asset.files.map(async (file) => ({
+                name: getFileName(file),
+                type: file.type,
+                bytes: new Uint8Array(await file.arrayBuffer()),
+            }))
+        ),
+    };
+}
+
+export function canUseOptimizerWorker(asset: LoadedAssetInfo, settings: OptimizerSettings) {
+    return (
+        typeof Worker !== "undefined" &&
+        !isKtxMode(settings) &&
+        (asset.kind === "scene" || asset.kind === "texture")
+    );
+}
+
+function getWorkerPreviewOutput(result: OptimizerWorkerJobSuccess) {
+    return (
+        result.outputFiles.find(
+            (file) => file.kind === "texture-preview-scene" || file.kind === "scene-preview-glb" || file.kind === "scene-glb"
+        ) ?? null
+    );
+}
+
+async function tryOptimizeInWorker(
+    asset: LoadedAssetInfo,
+    settings: OptimizerSettings,
+    options?: OptimizeLoadedAssetOptions
+): Promise<OptimizationResult | null> {
+    if (!canUseOptimizerWorker(asset, settings)) {
+        return null;
+    }
+
+    const workerAsset = await createOptimizerWorkerAsset(asset);
+    const request: OptimizerWorkerJobRequest = {
+        jobId: `${asset.primaryFileName}:${Date.now()}`,
+        priority: "interactive",
+        asset: workerAsset,
+        settings,
+    };
+    const result = await getOptimizerWorkerPool().optimize(request, {
+        onProgress: options?.onProgress,
+    });
+    if (!result.ok) {
+        return null;
+    }
+
+    const primaryOutput = result.outputFiles.find((file) => file.fileName === result.primaryOutputFileName) ?? result.outputFiles[0];
+    const previewOutput = getWorkerPreviewOutput(result) ?? primaryOutput;
+    if (!primaryOutput || !previewOutput) {
+        return null;
+    }
+
+    const optimizedKind = primaryOutput.kind === "texture-image" ? "texture" : "scene";
+
+    return {
+        kind: optimizedKind,
+        objectUrl: createDownloadBlobUrl(primaryOutput.bytes, primaryOutput.mimeType),
+        sizeBytes: result.sizeBytes,
+        compressionLabel: result.compressionLabel,
+        processingMode: "worker",
+        downloadFileName: result.primaryOutputFileName,
+        previewObjectUrl: createDownloadBlobUrl(previewOutput.bytes, previewOutput.mimeType),
+        previewKind: "scene",
+    };
+}
+
 async function createSceneDownloadOutput(
     io: WebIO,
     document: Awaited<ReturnType<WebIO["readBinary"]>>,
@@ -312,7 +411,12 @@ async function readSourceDocument(asset: LoadedAssetInfo, io: WebIO) {
     throw new Error("Optimization currently supports `.glb` and `.gltf` input only.");
 }
 
-export async function optimizeLoadedAsset(asset: LoadedAssetInfo, settings: OptimizerSettings): Promise<OptimizationResult> {
+async function optimizeLoadedAssetOnMainThread(
+    asset: LoadedAssetInfo,
+    settings: OptimizerSettings,
+    options?: OptimizeLoadedAssetOptions
+): Promise<OptimizationResult> {
+    emitOptimizationProgress(asset, options, "reading", `Loading ${asset.primaryFileName}...`);
     const io = await createWebIo(settings.draco);
     const { document } = asset.kind === "texture" ? { document: await createTexturePlaneDocument(asset.files[0]) } : await readSourceDocument(asset, io);
     const useKtx = isKtxMode(settings);
@@ -332,6 +436,7 @@ export async function optimizeLoadedAsset(asset: LoadedAssetInfo, settings: Opti
     const { prepareGltfOptimization } = await import("../features/optimizer/buildGltfOptimizerTransforms");
 
     if (useKtx) {
+        emitOptimizationProgress(asset, options, "transforming", `Applying optimization settings to ${asset.primaryFileName}...`);
         const prepared = await prepareGltfOptimization(document, {
             ...reusableOptions,
             texture: {
@@ -340,6 +445,7 @@ export async function optimizeLoadedAsset(asset: LoadedAssetInfo, settings: Opti
         });
         await document.transform(...prepared.transforms);
         await encodeKtxTextures(document, getKtxEncodingOptions(settings));
+        emitOptimizationProgress(asset, options, "writing", `Saving optimized output for ${asset.primaryFileName}...`);
         const optimizedGlb = await io.writeBinary(document);
         const objectUrl = URL.createObjectURL(new Blob([optimizedGlb], { type: "model/gltf-binary" }));
 
@@ -356,6 +462,7 @@ export async function optimizeLoadedAsset(asset: LoadedAssetInfo, settings: Opti
                 objectUrl: URL.createObjectURL(new Blob([image], { type: mimeType })),
                 sizeBytes: image.byteLength ?? image.length,
                 compressionLabel: getTextureCompressionLabel(mimeType),
+                processingMode: "main-thread",
                 downloadFileName: `${asset.primaryFileName.replace(/\.[^/.]+$/, "")}-opt${getTextureOutputExtension(mimeType)}`,
                 previewObjectUrl: objectUrl,
                 previewKind: "scene",
@@ -369,12 +476,14 @@ export async function optimizeLoadedAsset(asset: LoadedAssetInfo, settings: Opti
             objectUrl: sceneDownload.objectUrl,
             sizeBytes: sceneDownload.sizeBytes,
             compressionLabel: (await detectAssetFeaturesFromGlbBytes(sceneDownload.previewBytes)).compressionLabel,
+            processingMode: "main-thread",
             downloadFileName: sceneDownload.downloadFileName,
             previewObjectUrl: sceneDownload.previewObjectUrl,
             previewKind: "scene",
         };
     }
 
+    emitOptimizationProgress(asset, options, "transforming", `Applying optimization settings to ${asset.primaryFileName}...`);
     const prepared = await prepareGltfOptimization(document, reusableOptions);
     await document.transform(...prepared.transforms);
 
@@ -388,6 +497,7 @@ export async function optimizeLoadedAsset(asset: LoadedAssetInfo, settings: Opti
     }
 
     if (asset.kind === "texture" && settings.textureExportMode === "image") {
+        emitOptimizationProgress(asset, options, "writing", `Saving optimized output for ${asset.primaryFileName}...`);
         const optimizedGlb = await io.writeBinary(document);
         const objectUrl = createDownloadBlobUrl(optimizedGlb, "model/gltf-binary");
         const optimizedTexture = document.getRoot().listTextures()[0];
@@ -402,12 +512,14 @@ export async function optimizeLoadedAsset(asset: LoadedAssetInfo, settings: Opti
             objectUrl: URL.createObjectURL(new Blob([image], { type: mimeType })),
             sizeBytes: image.byteLength ?? image.length,
             compressionLabel: getTextureCompressionLabel(mimeType),
+            processingMode: "main-thread",
             downloadFileName: `${asset.primaryFileName.replace(/\.[^/.]+$/, "")}-opt${getTextureOutputExtension(mimeType)}`,
             previewObjectUrl: objectUrl,
             previewKind: "scene",
         };
     }
 
+    emitOptimizationProgress(asset, options, "writing", `Saving optimized output for ${asset.primaryFileName}...`);
     const sceneDownload = await createSceneDownloadOutput(io, document, asset, settings);
 
     return {
@@ -415,8 +527,22 @@ export async function optimizeLoadedAsset(asset: LoadedAssetInfo, settings: Opti
         objectUrl: sceneDownload.objectUrl,
         sizeBytes: sceneDownload.sizeBytes || totalVramBytes,
         compressionLabel: (await detectAssetFeaturesFromGlbBytes(sceneDownload.previewBytes)).compressionLabel,
+        processingMode: "main-thread",
         downloadFileName: sceneDownload.downloadFileName,
         previewObjectUrl: sceneDownload.previewObjectUrl,
         previewKind: "scene",
     };
+}
+
+export async function optimizeLoadedAsset(
+    asset: LoadedAssetInfo,
+    settings: OptimizerSettings,
+    options?: OptimizeLoadedAssetOptions
+): Promise<OptimizationResult> {
+    const workerResult = await tryOptimizeInWorker(asset, settings, options);
+    if (workerResult) {
+        return workerResult;
+    }
+
+    return optimizeLoadedAssetOnMainThread(asset, settings, options);
 }

@@ -7,6 +7,7 @@ import type { AnimationControlsState } from "../components/AnimationControls.typ
 import type { ViewerCanvasHandle, ViewerSceneInfo } from "../components/ViewerCanvas";
 import { optimizeLoadedAsset } from "./optimizer";
 import type { AppStatus, LoadedAssetInfo, LoadedAssetKind, OptimizerSettings, ScreenshotCompareState } from "./model";
+import type { OptimizerWorkerJobProgress } from "../features/optimizer/workerShared";
 
 export type CompressionPreference = "uncompress" | "keep-same";
 
@@ -45,6 +46,30 @@ function getTextureExportLabel(exportMode: "image" | "glb-plane") {
 
 function getSceneExportLabel(exportMode: OptimizerSettings["sceneExportMode"]) {
     return exportMode === "gltf-zip" ? "zipped GLTF" : "GLB";
+}
+
+function getOptimizationRuntimeLabel(processingMode: "worker" | "main-thread") {
+    return processingMode === "worker" ? "worker" : "main thread";
+}
+
+export function getOptimizationRuntimeSummary(
+    processingMode: "worker" | "main-thread",
+    settings: Pick<OptimizerSettings, "draco">,
+    assetKind: LoadedAssetKind
+) {
+    const runtimeLabel = getOptimizationRuntimeLabel(processingMode);
+    if (assetKind === "scene" && settings.draco) {
+        return `${runtimeLabel} with Draco enabled`;
+    }
+
+    return runtimeLabel;
+}
+
+function applyOptimizationProgress(setStatus: Dispatch<SetStateAction<AppStatus>>, progress: OptimizerWorkerJobProgress) {
+    setStatus((current) => ({
+        ...current,
+        message: progress.message,
+    }));
 }
 
 export function getExpectedDownloadFileName(
@@ -372,16 +397,20 @@ export function useOptimizationController({
 
             try {
                 const optimizationSourceFeatures = await getOptimizationSourceFeatures(asset);
+                const effectiveSettings = getEffectiveOptimizationSettings(
+                    latestSettings,
+                    latestCompressionPreference,
+                    optimizationSourceFeatures,
+                    asset.kind
+                );
                 const renderingSuspension = viewerRef.current?.suspendRendering();
                 try {
                     const result = await optimizeLoadedAsset(
                         asset,
-                        getEffectiveOptimizationSettings(
-                            latestSettings,
-                            latestCompressionPreference,
-                            optimizationSourceFeatures,
-                            asset.kind
-                        )
+                        effectiveSettings,
+                        {
+                            onProgress: (progress) => applyOptimizationProgress(setStatus, progress),
+                        }
                     );
                     setStatus((current) => ({
                         ...current,
@@ -413,9 +442,9 @@ export function useOptimizationController({
                         message:
                             asset.kind === "texture"
                                 ? latestSettings.textureExportMode === "image"
-                                    ? "Reload complete. Optimized texture image and preview plane updated for the current settings."
-                                    : "Reload complete. Optimized GLB plane updated for the current settings."
-                                : "Reload complete. Optimized GLB updated for the current settings.",
+                                    ? `Reload complete. Optimized texture image and preview plane updated for the current settings via ${getOptimizationRuntimeSummary(result.processingMode, effectiveSettings, asset.kind)}.`
+                                    : `Reload complete. Optimized GLB plane updated for the current settings via ${getOptimizationRuntimeSummary(result.processingMode, effectiveSettings, asset.kind)}.`
+                                : `Reload complete. Optimized GLB updated for the current settings via ${getOptimizationRuntimeSummary(result.processingMode, effectiveSettings, asset.kind)}.`,
                     }));
                 } finally {
                     renderingSuspension?.dispose();
@@ -474,11 +503,15 @@ export function useOptimizationController({
 
         try {
             const optimizationSourceFeatures = await getOptimizationSourceFeatures(asset);
+            const effectiveSettings = getEffectiveOptimizationSettings(settings, compressionPreference, optimizationSourceFeatures, asset.kind);
             const renderingSuspension = viewerRef.current?.suspendRendering();
             try {
                 const result = await optimizeLoadedAsset(
                     asset,
-                    getEffectiveOptimizationSettings(settings, compressionPreference, optimizationSourceFeatures, asset.kind)
+                    effectiveSettings,
+                    {
+                        onProgress: (progress) => applyOptimizationProgress(setStatus, progress),
+                    }
                 );
                 setStatus((current) => ({
                     ...current,
@@ -508,12 +541,12 @@ export function useOptimizationController({
                     ...current,
                     optimizedLabel: formatMegabytes(result.sizeBytes),
                     optimizedCompression: result.compressionLabel,
-                        message:
-                            asset.kind === "texture"
-                                ? settings.textureExportMode === "image"
-                                    ? "Texture optimization complete. The optimized image is ready to download, and the updated preview plane is shown on the right."
-                                    : "Texture optimization complete. The optimized GLB plane is ready to download."
-                            : `Optimization complete. The optimized ${getSceneExportLabel(settings.sceneExportMode)} is ready to download.`,
+                    message:
+                        asset.kind === "texture"
+                            ? settings.textureExportMode === "image"
+                                ? `Texture optimization complete via ${getOptimizationRuntimeSummary(result.processingMode, effectiveSettings, asset.kind)}. The optimized image is ready to download, and the updated preview plane is shown on the right.`
+                                : `Texture optimization complete via ${getOptimizationRuntimeSummary(result.processingMode, effectiveSettings, asset.kind)}. The optimized GLB plane is ready to download.`
+                            : `Optimization complete via ${getOptimizationRuntimeSummary(result.processingMode, effectiveSettings, asset.kind)}. The optimized ${getSceneExportLabel(settings.sceneExportMode)} is ready to download.`,
                 }));
             } finally {
                 renderingSuspension?.dispose();

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { getTextureCompressionLabel, getTextureOutputExtension, resolveRelativePath } from "./optimizer";
+import { canUseOptimizerWorker, getTextureCompressionLabel, getTextureOutputExtension, resolveRelativePath } from "./optimizer";
+import { DEFAULT_SETTINGS } from "./defaultSettings";
 
 describe("optimizer helpers", () => {
     it("resolves sidecar resource paths relative to the source gltf", () => {
@@ -37,5 +38,28 @@ describe("optimizer helpers", () => {
         expect(getTextureOutputExtension("image/avif")).toBe(".bin");
         expect(getTextureCompressionLabel("image/avif")).toBe("BIN");
         expect(getTextureCompressionLabel(null)).toBe("Texture");
+    });
+
+    it("allows Draco scene jobs to use the optimizer worker when other worker-safe conditions are met", () => {
+        const originalWorker = globalThis.Worker;
+        globalThis.Worker = (class FakeWorker {} as unknown) as typeof Worker;
+
+        try {
+            expect(
+                canUseOptimizerWorker(
+                    {
+                        kind: "scene",
+                        primaryFileName: "robot.glb",
+                        files: [],
+                    },
+                    {
+                        ...DEFAULT_SETTINGS,
+                        draco: true,
+                    }
+                )
+            ).toBe(true);
+        } finally {
+            globalThis.Worker = originalWorker;
+        }
     });
 });

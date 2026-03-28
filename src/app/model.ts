@@ -2,6 +2,7 @@ export type TextureOutputMode = "keep" | "webp" | "png" | "ktx2-uastc" | "ktx2-e
 export type LoadedAssetKind = "scene" | "texture";
 export type TextureExportMode = "image" | "glb-plane";
 export type SceneExportMode = "glb" | "gltf-zip";
+export type OptimizationProcessingMode = "worker" | "main-thread";
 
 export interface OptimizerSettings {
     timeToWaitBeforeSuspend: number;
@@ -64,6 +65,7 @@ export interface OptimizationResult {
     objectUrl: string;
     sizeBytes: number;
     compressionLabel: string;
+    processingMode: OptimizationProcessingMode;
     downloadFileName: string;
     previewObjectUrl: string;
     previewKind: LoadedAssetKind;

@@ -5,38 +5,41 @@ import dracoEncoderFallbackUrl from "@babylonjs/core/assets/Draco/draco_encoder.
 import dracoEncoderWasmBinaryUrl from "@babylonjs/core/assets/Draco/draco_encoder.wasm?url";
 import dracoEncoderWasmWrapperUrl from "@babylonjs/core/assets/Draco/draco_encoder_wasm_wrapper.js?url";
 
+type DracoModuleFactory = (config?: { locateFile?: (path: string) => string }) => Promise<unknown>;
+
+export interface DracoAssetDescriptor {
+    factoryName: "DracoDecoderModule" | "DracoEncoderModule";
+    wrapperUrl: string;
+    wasmBinaryUrl: string;
+    fallbackUrl?: string;
+}
+
+export interface DracoModuleLoaderDependencies {
+    loadModuleScript: (url: string) => Promise<void>;
+    getGlobalFactory: (name: string) => DracoModuleFactory | undefined;
+}
+
 let dracoDecoderModulePromise: Promise<unknown> | null = null;
 let dracoEncoderModulePromise: Promise<unknown> | null = null;
+const loadedModuleScripts = new Map<string, Promise<void>>();
 
-function loadScript(src: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-        const existing = document.querySelector(`script[data-newsandbox-src="${src}"]`) as HTMLScriptElement | null;
-        if (existing) {
-            if (existing.dataset.loaded === "true") {
-                resolve();
-                return;
-            }
+async function loadModuleScript(url: string): Promise<void> {
+    let promise = loadedModuleScripts.get(url);
+    if (!promise) {
+        promise = import(/* @vite-ignore */ url).then(() => undefined);
+        loadedModuleScripts.set(url, promise);
+    }
 
-            existing.addEventListener("load", () => resolve(), { once: true });
-            existing.addEventListener("error", () => reject(new Error(`Failed to load script: ${src}`)), { once: true });
-            return;
-        }
+    try {
+        await promise;
+    } catch (error) {
+        loadedModuleScripts.delete(url);
+        throw error;
+    }
+}
 
-        const script = document.createElement("script");
-        script.src = src;
-        script.async = true;
-        script.dataset.newsandboxSrc = src;
-        script.addEventListener(
-            "load",
-            () => {
-                script.dataset.loaded = "true";
-                resolve();
-            },
-            { once: true }
-        );
-        script.addEventListener("error", () => reject(new Error(`Failed to load script: ${src}`)), { once: true });
-        document.head.appendChild(script);
-    });
+function getGlobalFactory(name: string): DracoModuleFactory | undefined {
+    return (globalThis as typeof globalThis & Record<string, DracoModuleFactory | undefined>)[name];
 }
 
 export function getBabylonDracoDecoderUrls() {
@@ -47,31 +50,56 @@ export function getBabylonDracoDecoderUrls() {
     };
 }
 
-function getGlobalFactory<TFactory extends (config?: { locateFile?: (path: string) => string }) => Promise<unknown>>(name: string): TFactory | undefined {
-    return (globalThis as typeof globalThis & Record<string, TFactory | undefined>)[name];
+export function getDracoDecoderAssetDescriptor(): DracoAssetDescriptor {
+    return {
+        factoryName: "DracoDecoderModule",
+        wrapperUrl: dracoDecoderWasmWrapperUrl,
+        wasmBinaryUrl: dracoDecoderWasmBinaryUrl,
+        fallbackUrl: dracoDecoderFallbackUrl,
+    };
+}
+
+export function getDracoEncoderAssetDescriptor(): DracoAssetDescriptor {
+    return {
+        factoryName: "DracoEncoderModule",
+        wrapperUrl: dracoEncoderWasmWrapperUrl,
+        wasmBinaryUrl: dracoEncoderWasmBinaryUrl,
+        fallbackUrl: dracoEncoderFallbackUrl,
+    };
+}
+
+export async function instantiateDracoModule(
+    descriptor: DracoAssetDescriptor,
+    dependencies: DracoModuleLoaderDependencies = {
+        loadModuleScript,
+        getGlobalFactory,
+    }
+): Promise<unknown> {
+    await dependencies.loadModuleScript(descriptor.wrapperUrl);
+
+    const factory = dependencies.getGlobalFactory(descriptor.factoryName);
+    if (typeof factory !== "function") {
+        throw new Error(`${descriptor.factoryName} factory is not available after loading the Draco wrapper.`);
+    }
+
+    return factory({
+        locateFile: (path: string) => {
+            if (path.endsWith(".wasm")) {
+                return descriptor.wasmBinaryUrl;
+            }
+
+            if (descriptor.fallbackUrl && path.endsWith(".js")) {
+                return descriptor.fallbackUrl;
+            }
+
+            return path;
+        },
+    });
 }
 
 export async function loadDracoDecoderModule(): Promise<unknown> {
     if (!dracoDecoderModulePromise) {
-        dracoDecoderModulePromise = (async () => {
-            await loadScript(dracoDecoderWasmWrapperUrl);
-
-            const dracoDecoderFactory = getGlobalFactory("DracoDecoderModule");
-
-            if (typeof dracoDecoderFactory !== "function") {
-                throw new Error("Draco decoder factory is not available after loading the decoder script.");
-            }
-
-            return dracoDecoderFactory({
-                locateFile: (path: string) => {
-                    if (path.endsWith(".wasm")) {
-                        return dracoDecoderWasmBinaryUrl;
-                    }
-
-                    return path;
-                },
-            });
-        })().catch((error) => {
+        dracoDecoderModulePromise = instantiateDracoModule(getDracoDecoderAssetDescriptor()).catch((error) => {
             dracoDecoderModulePromise = null;
             throw error;
         });
@@ -82,29 +110,7 @@ export async function loadDracoDecoderModule(): Promise<unknown> {
 
 export async function loadDracoEncoderModule(): Promise<unknown> {
     if (!dracoEncoderModulePromise) {
-        dracoEncoderModulePromise = (async () => {
-            await loadScript(dracoEncoderWasmWrapperUrl);
-
-            const dracoEncoderFactory = getGlobalFactory("DracoEncoderModule");
-
-            if (typeof dracoEncoderFactory !== "function") {
-                throw new Error("Draco encoder factory is not available after loading the encoder script.");
-            }
-
-            return dracoEncoderFactory({
-                locateFile: (path: string) => {
-                    if (path.endsWith(".wasm")) {
-                        return dracoEncoderWasmBinaryUrl;
-                    }
-
-                    if (path.endsWith(".js")) {
-                        return dracoEncoderFallbackUrl;
-                    }
-
-                    return path;
-                },
-            });
-        })().catch((error) => {
+        dracoEncoderModulePromise = instantiateDracoModule(getDracoEncoderAssetDescriptor()).catch((error) => {
             dracoEncoderModulePromise = null;
             throw error;
         });
