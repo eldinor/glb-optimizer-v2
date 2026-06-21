@@ -2,21 +2,31 @@ import { Document, WebIO } from "@gltf-transform/core";
 
 const SUPPORTED_STANDALONE_TEXTURE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".webp"]);
 
+export interface StandaloneTextureSource {
+    name: string;
+    type: string;
+    bytes: Uint8Array;
+}
+
 function getFileExtension(name: string): string {
     const index = name.lastIndexOf(".");
     return index === -1 ? "" : name.slice(index).toLowerCase();
 }
 
-export function isStandaloneTextureFile(file: File): boolean {
-    return SUPPORTED_STANDALONE_TEXTURE_EXTENSIONS.has(getFileExtension(file.name));
+function isStandaloneTextureName(name: string): boolean {
+    return SUPPORTED_STANDALONE_TEXTURE_EXTENSIONS.has(getFileExtension(name));
 }
 
-export function getTextureMimeType(file: File): string {
-    if (file.type) {
-        return file.type;
+export function isStandaloneTextureFile(file: File): boolean {
+    return isStandaloneTextureName(file.name);
+}
+
+export function getTextureMimeType(source: Pick<StandaloneTextureSource, "name" | "type">): string {
+    if (source.type) {
+        return source.type;
     }
 
-    const extension = getFileExtension(file.name);
+    const extension = getFileExtension(source.name);
     if (extension === ".jpg" || extension === ".jpeg") {
         return "image/jpeg";
     }
@@ -28,7 +38,17 @@ export function getTextureMimeType(file: File): string {
     return "image/png";
 }
 
-async function getTextureAspectRatio(file: File): Promise<number> {
+async function getTextureAspectRatioFromImageBitmap(bytes: Uint8Array, mimeType: string): Promise<number> {
+    const bitmap = await createImageBitmap(new Blob([bytes], { type: mimeType }));
+
+    try {
+        return bitmap.height ? bitmap.width / bitmap.height : 1;
+    } finally {
+        bitmap.close();
+    }
+}
+
+async function getTextureAspectRatioFromImageElement(file: File): Promise<number> {
     const objectUrl = URL.createObjectURL(file);
 
     try {
@@ -47,15 +67,26 @@ async function getTextureAspectRatio(file: File): Promise<number> {
     }
 }
 
-export async function createTexturePlaneDocument(file: File): Promise<Document> {
-    if (!isStandaloneTextureFile(file)) {
+async function getTextureAspectRatio(source: StandaloneTextureSource): Promise<number> {
+    const mimeType = getTextureMimeType(source);
+    if (typeof createImageBitmap === "function") {
+        return getTextureAspectRatioFromImageBitmap(source.bytes, mimeType);
+    }
+
+    if (typeof File === "function" && typeof Image === "function" && typeof URL !== "undefined") {
+        return getTextureAspectRatioFromImageElement(new File([source.bytes], source.name, { type: mimeType }));
+    }
+
+    throw new Error(`Failed to decode texture ${source.name} in this environment.`);
+}
+
+function buildTexturePlaneDocument(source: StandaloneTextureSource, aspectRatio: number): Document {
+    if (!isStandaloneTextureName(source.name)) {
         throw new Error("Texture-only mode currently supports standalone PNG, JPG, JPEG, and WEBP files.");
     }
 
-    const aspectRatio = await getTextureAspectRatio(file);
     const halfWidth = Math.max(0.5, aspectRatio) * 0.5;
     const halfHeight = Math.max(0.5, 1 / Math.max(aspectRatio, 0.0001)) * 0.5;
-    const imageBytes = new Uint8Array(await file.arrayBuffer());
 
     const document = new Document();
     const buffer = document.createBuffer("texture-plane-buffer");
@@ -125,7 +156,7 @@ export async function createTexturePlaneDocument(file: File): Promise<Document> 
         .setArray(new Uint16Array([0, 1, 2, 0, 2, 3]))
         .setBuffer(buffer);
 
-    const texture = document.createTexture("source-texture").setImage(imageBytes).setMimeType(getTextureMimeType(file));
+    const texture = document.createTexture("source-texture").setImage(source.bytes).setMimeType(getTextureMimeType(source));
     const material = document.createMaterial("source-material").setBaseColorTexture(texture).setDoubleSided(true).setAlphaMode("BLEND");
     const primitive = document
         .createPrimitive()
@@ -141,6 +172,22 @@ export async function createTexturePlaneDocument(file: File): Promise<Document> 
     document.getRoot().setDefaultScene(scene);
 
     return document;
+}
+
+export async function createTexturePlaneDocumentFromSource(source: StandaloneTextureSource): Promise<Document> {
+    if (!isStandaloneTextureName(source.name)) {
+        throw new Error("Texture-only mode currently supports standalone PNG, JPG, JPEG, and WEBP files.");
+    }
+
+    return buildTexturePlaneDocument(source, await getTextureAspectRatio(source));
+}
+
+export async function createTexturePlaneDocument(file: File): Promise<Document> {
+    return createTexturePlaneDocumentFromSource({
+        name: file.name,
+        type: file.type,
+        bytes: new Uint8Array(await file.arrayBuffer()),
+    });
 }
 
 export async function createTexturePlaneGlb(file: File): Promise<Uint8Array> {

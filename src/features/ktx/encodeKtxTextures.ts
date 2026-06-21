@@ -1,9 +1,16 @@
 import type { Document } from "@gltf-transform/core";
 import { KHRTextureBasisu } from "@gltf-transform/extensions";
 import { listTextureSlots } from "@gltf-transform/functions";
-import * as ktx from "ktx2-encoder";
+import * as ktx from "babylonpress-ktx2-encoder";
 import { ktxfix } from "./ktxfix";
 import type { KtxEncodingOptions } from "./types";
+
+let workerPool: ReturnType<typeof ktx.createKTX2WorkerPool> | null = null;
+
+function getWorkerPool(): ReturnType<typeof ktx.createKTX2WorkerPool> {
+    workerPool ??= ktx.createKTX2WorkerPool({ size: "auto" });
+    return workerPool;
+}
 
 function getTextureSourceType(mimeType: string): 0 | 1 {
     return mimeType.includes("jpeg") || mimeType.includes("jpg") ? 0 : 1;
@@ -44,6 +51,8 @@ function getKtxModeForTexture(options: KtxEncodingOptions, slots: string[]): boo
 }
 
 export async function encodeKtxTextures(document: Document, options: KtxEncodingOptions): Promise<void> {
+    const logger = document.getLogger();
+
     for (const texture of document.getRoot().listTextures()) {
         const image = texture.getImage();
         const mimeType = texture.getMimeType();
@@ -52,7 +61,8 @@ export async function encodeKtxTextures(document: Document, options: KtxEncoding
             continue;
         }
 
-        const encodedImage = await ktx.encodeToKTX2(image instanceof Uint8Array ? image : new Uint8Array(image), {
+        const textureLabel = texture.getURI() || texture.getName() || "unnamed-texture";
+        const encodeOptions = {
             type: getTextureSourceType(mimeType),
             enableDebug: false,
             generateMipmap: true,
@@ -61,7 +71,19 @@ export async function encodeKtxTextures(document: Document, options: KtxEncoding
             compressionLevel: options.compressionLevel,
             needSupercompression: options.supercompression,
             isKTX2File: true,
-        });
+        } satisfies Partial<ktx.IEncodeOptions>;
+
+        let encodedImage: Uint8Array;
+        try {
+            encodedImage = await ktx.encodeToKTX2(image instanceof Uint8Array ? image : new Uint8Array(image), {
+                ...encodeOptions,
+                worker: getWorkerPool(),
+            });
+        } catch (workerError) {
+            const message = workerError instanceof Error ? workerError.message : String(workerError);
+            logger.warn(`KTX worker encode failed for "${textureLabel}", retrying on the main thread: ${message}`);
+            encodedImage = await ktx.encodeToKTX2(image instanceof Uint8Array ? image : new Uint8Array(image), encodeOptions);
+        }
 
         texture.setMimeType("image/ktx2").setImage(encodedImage);
     }

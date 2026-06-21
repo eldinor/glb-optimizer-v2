@@ -7,6 +7,7 @@ import type { AnimationControlsState } from "../components/AnimationControls.typ
 import type { ViewerCanvasHandle, ViewerSceneInfo } from "../components/ViewerCanvas";
 import { optimizeLoadedAsset } from "./optimizer";
 import type { AppStatus, LoadedAssetInfo, LoadedAssetKind, OptimizerSettings, ScreenshotCompareState } from "./model";
+import type { OptimizerWorkerJobProgress } from "../features/optimizer/workerShared";
 
 export type CompressionPreference = "uncompress" | "keep-same";
 
@@ -45,6 +46,30 @@ function getTextureExportLabel(exportMode: "image" | "glb-plane") {
 
 function getSceneExportLabel(exportMode: OptimizerSettings["sceneExportMode"]) {
     return exportMode === "gltf-zip" ? "zipped GLTF" : "GLB";
+}
+
+function getOptimizationRuntimeLabel(processingMode: "worker" | "main-thread") {
+    return processingMode === "worker" ? "worker" : "main thread";
+}
+
+export function getOptimizationRuntimeSummary(
+    processingMode: "worker" | "main-thread",
+    settings: Pick<OptimizerSettings, "draco">,
+    assetKind: LoadedAssetKind
+) {
+    const runtimeLabel = getOptimizationRuntimeLabel(processingMode);
+    if (assetKind === "scene" && settings.draco) {
+        return `${runtimeLabel} with Draco enabled`;
+    }
+
+    return runtimeLabel;
+}
+
+function applyOptimizationProgress(setStatus: Dispatch<SetStateAction<AppStatus>>, progress: OptimizerWorkerJobProgress) {
+    setStatus((current) => ({
+        ...current,
+        message: progress.message,
+    }));
 }
 
 export function getExpectedDownloadFileName(
@@ -142,7 +167,10 @@ export function useOptimizationController({
     const [compareState, setCompareState] = useState<ScreenshotCompareState | null>(null);
     const [isComparing, setIsComparing] = useState(false);
     const [sourceAssetInfo, setSourceAssetInfo] = useState<GltfAssetInfo | null>(null);
+    const [optimizedAssetInfo, setOptimizedAssetInfo] = useState<GltfAssetInfo | null>(null);
     const [sourceAssetFeatures, setSourceAssetFeatures] = useState<AssetFeatures | null>(null);
+    const [sourceSizeBytes, setSourceSizeBytes] = useState<number | null>(null);
+    const [optimizedSizeBytes, setOptimizedSizeBytes] = useState<number | null>(null);
     const [activeAssetKind, setActiveAssetKind] = useState<LoadedAssetKind | null>(null);
     const [loadedPrimaryFileName, setLoadedPrimaryFileName] = useState("");
     const [editedDownloadFileName, setEditedDownloadFileName] = useState("");
@@ -266,6 +294,22 @@ export function useOptimizationController({
         }));
     }, []);
 
+    const loadOptimizedAssetInfo = useCallback(async (previewUrl: string, previewKind: LoadedAssetKind, downloadFileName: string) => {
+        if (previewKind !== "scene") {
+            setOptimizedAssetInfo(null);
+            return;
+        }
+
+        const previewBytes = new Uint8Array(await (await fetch(previewUrl)).arrayBuffer());
+        const previewFile = new File([previewBytes], downloadFileName.replace(/\.[^/.]+$/, ".glb"), { type: "model/gltf-binary" });
+        const info = await extractGltfAssetInfoFromLoadedAsset({
+            kind: "scene",
+            primaryFileName: previewFile.name,
+            files: [previewFile],
+        });
+        setOptimizedAssetInfo(info);
+    }, []);
+
     const getOptimizationSourceFeatures = useCallback(async (asset: LoadedAssetInfo) => {
         if (asset.kind !== "scene") {
             return null;
@@ -288,6 +332,7 @@ export function useOptimizationController({
             setCompareState(null);
             setActiveAssetKind(asset.kind);
             setLoadedPrimaryFileName(asset.primaryFileName);
+            setSourceSizeBytes(asset.files.reduce((sum, file) => sum + file.size, 0));
 
             if (asset.kind === "scene") {
                 void detectAssetFeaturesFromLoadedAsset(asset).then((features) => {
@@ -317,6 +362,8 @@ export function useOptimizationController({
                     }
                     setOptimizedAsset(null);
                 }
+                setOptimizedAssetInfo(null);
+                setOptimizedSizeBytes(null);
                 setEditedDownloadFileName("");
                 setDownloadFileNameDraft("");
                 setIsEditingDownloadFileName(false);
@@ -350,16 +397,20 @@ export function useOptimizationController({
 
             try {
                 const optimizationSourceFeatures = await getOptimizationSourceFeatures(asset);
+                const effectiveSettings = getEffectiveOptimizationSettings(
+                    latestSettings,
+                    latestCompressionPreference,
+                    optimizationSourceFeatures,
+                    asset.kind
+                );
                 const renderingSuspension = viewerRef.current?.suspendRendering();
                 try {
                     const result = await optimizeLoadedAsset(
                         asset,
-                        getEffectiveOptimizationSettings(
-                            latestSettings,
-                            latestCompressionPreference,
-                            optimizationSourceFeatures,
-                            asset.kind
-                        )
+                        effectiveSettings,
+                        {
+                            onProgress: (progress) => applyOptimizationProgress(setStatus, progress),
+                        }
                     );
                     setStatus((current) => ({
                         ...current,
@@ -378,6 +429,8 @@ export function useOptimizationController({
                         previewUrl: result.previewObjectUrl,
                         previewKind: result.previewKind,
                     });
+                    setOptimizedSizeBytes(result.sizeBytes);
+                    void loadOptimizedAssetInfo(result.previewObjectUrl, result.previewKind, result.downloadFileName);
                     setEditedDownloadFileName(result.downloadFileName);
                     setDownloadFileNameDraft(result.downloadFileName);
                     setIsEditingDownloadFileName(false);
@@ -389,9 +442,9 @@ export function useOptimizationController({
                         message:
                             asset.kind === "texture"
                                 ? latestSettings.textureExportMode === "image"
-                                    ? "Reload complete. Optimized texture image and preview plane updated for the current settings."
-                                    : "Reload complete. Optimized GLB plane updated for the current settings."
-                                : "Reload complete. Optimized GLB updated for the current settings.",
+                                    ? `Reload complete. Optimized texture image and preview plane updated for the current settings via ${getOptimizationRuntimeSummary(result.processingMode, effectiveSettings, asset.kind)}.`
+                                    : `Reload complete. Optimized GLB plane updated for the current settings via ${getOptimizationRuntimeSummary(result.processingMode, effectiveSettings, asset.kind)}.`
+                                : `Reload complete. Optimized GLB updated for the current settings via ${getOptimizationRuntimeSummary(result.processingMode, effectiveSettings, asset.kind)}.`,
                     }));
                 } finally {
                     renderingSuspension?.dispose();
@@ -450,11 +503,15 @@ export function useOptimizationController({
 
         try {
             const optimizationSourceFeatures = await getOptimizationSourceFeatures(asset);
+            const effectiveSettings = getEffectiveOptimizationSettings(settings, compressionPreference, optimizationSourceFeatures, asset.kind);
             const renderingSuspension = viewerRef.current?.suspendRendering();
             try {
                 const result = await optimizeLoadedAsset(
                     asset,
-                    getEffectiveOptimizationSettings(settings, compressionPreference, optimizationSourceFeatures, asset.kind)
+                    effectiveSettings,
+                    {
+                        onProgress: (progress) => applyOptimizationProgress(setStatus, progress),
+                    }
                 );
                 setStatus((current) => ({
                     ...current,
@@ -474,6 +531,8 @@ export function useOptimizationController({
                     previewUrl: result.previewObjectUrl,
                     previewKind: result.previewKind,
                 });
+                setOptimizedSizeBytes(result.sizeBytes);
+                void loadOptimizedAssetInfo(result.previewObjectUrl, result.previewKind, result.downloadFileName);
                 setEditedDownloadFileName(result.downloadFileName);
                 setDownloadFileNameDraft(result.downloadFileName);
                 setIsEditingDownloadFileName(false);
@@ -482,12 +541,12 @@ export function useOptimizationController({
                     ...current,
                     optimizedLabel: formatMegabytes(result.sizeBytes),
                     optimizedCompression: result.compressionLabel,
-                        message:
-                            asset.kind === "texture"
-                                ? settings.textureExportMode === "image"
-                                    ? "Texture optimization complete. The optimized image is ready to download, and the updated preview plane is shown on the right."
-                                    : "Texture optimization complete. The optimized GLB plane is ready to download."
-                            : `Optimization complete. The optimized ${getSceneExportLabel(settings.sceneExportMode)} is ready to download.`,
+                    message:
+                        asset.kind === "texture"
+                            ? settings.textureExportMode === "image"
+                                ? `Texture optimization complete via ${getOptimizationRuntimeSummary(result.processingMode, effectiveSettings, asset.kind)}. The optimized image is ready to download, and the updated preview plane is shown on the right.`
+                                : `Texture optimization complete via ${getOptimizationRuntimeSummary(result.processingMode, effectiveSettings, asset.kind)}. The optimized GLB plane is ready to download.`
+                            : `Optimization complete via ${getOptimizationRuntimeSummary(result.processingMode, effectiveSettings, asset.kind)}. The optimized ${getSceneExportLabel(settings.sceneExportMode)} is ready to download.`,
                 }));
             } finally {
                 renderingSuspension?.dispose();
@@ -576,7 +635,10 @@ export function useOptimizationController({
         compareState,
         isComparing,
         sourceAssetInfo,
+        optimizedAssetInfo,
         sourceAssetFeatures,
+        sourceSizeBytes,
+        optimizedSizeBytes,
         activeAssetKind,
         loadedPrimaryFileName,
         editedDownloadFileName,

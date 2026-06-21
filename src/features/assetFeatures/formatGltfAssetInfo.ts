@@ -34,6 +34,8 @@ export function formatGltfAssetInfoRows(info: GltfAssetInfo): GltfAssetInfoRow[]
     // pushRow(rows, undefined, "Version", [`glTF ${info.version}`]);
     pushRow(rows, undefined, "Generator", [info.generator]);
     pushRow(rows, undefined, "Author", [info.author ? info.author : null]);
+    pushRow(rows, undefined, "License", [info.license ? info.license : null]);
+    pushRow(rows, undefined, "Source", [info.source ? info.source : null]);
     pushRow(rows, undefined, "Copyright", [info.copyright ? info.copyright : null]);
     pushRow(rows, "Scene Stats", "Scenes", [`${info.sceneCount}`]);
     pushRow(rows, undefined, "Nodes", [`${info.nodeCount}`]);

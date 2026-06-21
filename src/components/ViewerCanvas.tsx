@@ -154,6 +154,7 @@ interface ViewerCanvasProps {
     optimizedAsset: { url: string; kind: LoadedAssetKind } | null;
     sourceSceneVersion: number;
     onSceneInfoChange: (info: ViewerSceneInfo) => void;
+    onInspectorVisibilityChange?: (visible: boolean) => void;
     onAnimationStateChange?: (state: AnimationControlsState) => void;
     onSourceAssetLoaded?: (asset: LoadedAssetInfo, reason: "load" | "reload") => void | Promise<void>;
 }
@@ -343,6 +344,7 @@ export const ViewerCanvas = forwardRef<ViewerCanvasHandle, ViewerCanvasProps>(fu
             inspectorTokenRef.current?.dispose();
             inspectorTokenRef.current = null;
             setIsInspectorVisible(false);
+            props.onInspectorVisibilityChange?.(false);
             stopRendering();
             resizeObserver.disconnect();
             window.removeEventListener("resize", handleResize);
@@ -464,6 +466,7 @@ export const ViewerCanvas = forwardRef<ViewerCanvasHandle, ViewerCanvasProps>(fu
                     inspectorTokenRef.current.dispose();
                     inspectorTokenRef.current = null;
                     setIsInspectorVisible(false);
+                    props.onInspectorVisibilityChange?.(false);
                     markSceneMutated();
                     props.onSceneInfoChange({
                         sourceLabel: "Inspector",
@@ -477,6 +480,7 @@ export const ViewerCanvas = forwardRef<ViewerCanvasHandle, ViewerCanvasProps>(fu
                         showThemeSelector: false,
                     });
                     setIsInspectorVisible(true);
+                    props.onInspectorVisibilityChange?.(true);
                     markSceneMutated();
                     props.onSceneInfoChange({
                         sourceLabel: "Inspector",
