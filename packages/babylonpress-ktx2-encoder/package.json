@@ -6,17 +6,17 @@
   "exports": {
     ".": {
       "node": {
-        "import": "./dist/node/index.js",
-        "types": "./types/node/index.d.ts"
+        "types": "./types/node/index.d.ts",
+        "import": "./dist/node/index.js"
       },
       "default": {
-        "import": "./dist/web/index.js",
-        "types": "./types/web/index.d.ts"
+        "types": "./types/web/index.d.ts",
+        "import": "./dist/web/index.js"
       }
     },
     "./gltf-transform": {
-      "import": "./dist/gltf-transform/index.js",
-      "types": "./types/gltf-transform/index.d.ts"
+      "types": "./types/gltf-transform/index.d.ts",
+      "import": "./dist/gltf-transform/index.js"
     }
   },
   "repository": {
