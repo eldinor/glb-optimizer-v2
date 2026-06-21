@@ -1,6 +1,6 @@
-import type { EncodeInput, IEncodeOptions, IEncodeWorkerClient } from "../type.js";
+import type { CubeBufferData, IEncodeOptions, IEncodeWorkerClient } from "../type.js";
 export interface KTX2WorkerClient extends IEncodeWorkerClient {
-    encode(imageBuffer: EncodeInput, options: Omit<IEncodeOptions, "imageDecoder" | "worker">): Promise<Uint8Array>;
+    encode(imageBuffer: Uint8Array | CubeBufferData, options: Omit<IEncodeOptions, "imageDecoder" | "worker">): Promise<Uint8Array>;
     terminate(): void;
     readonly worker: Worker;
 }

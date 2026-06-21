@@ -41,6 +41,8 @@
   "license": "MIT",
   "scripts": {
     "dev": "vite",
+    "demo": "vite --open /",
+    "example:node": "node ./examples/optimize-glb.mjs",
     "benchmark": "vite --open /benchmark/",
     "benchmark:compare": "vite --open /benchmark/compare.html",
     "watch": "tsc -p tsconfig.json --watch",

@@ -1,8 +1,8 @@
-import type { CubeBufferData, CubeRasterImageData, EncodeInput, IEncodeOptions } from "../type.js";
-export type WorkerEncodeInput = EncodeInput;
+import type { CubeBufferData, IEncodeOptions } from "../type.js";
+export type WorkerEncodeInput = Uint8Array | CubeBufferData;
 export interface WorkerEncodeRequest {
     id: number;
-    imageBuffer: EncodeInput;
+    imageBuffer: Uint8Array | CubeBufferData;
     options: Omit<IEncodeOptions, "imageDecoder" | "worker">;
 }
 export interface WorkerEncodeSuccess {
@@ -16,5 +16,5 @@ export interface WorkerEncodeFailure {
     error: string;
 }
 export type WorkerEncodeResponse = WorkerEncodeSuccess | WorkerEncodeFailure;
-export declare function isCubeBufferData(imageBuffer: WorkerEncodeInput): imageBuffer is CubeBufferData | CubeRasterImageData;
+export declare function isCubeBufferData(imageBuffer: WorkerEncodeInput): imageBuffer is CubeBufferData;
 export declare function getTransferList(imageBuffer: WorkerEncodeInput): Transferable[];

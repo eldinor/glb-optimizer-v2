@@ -132,10 +132,24 @@ import { ktx2 } from "babylonpress-ktx2-encoder/gltf-transform";
 await document.transform(
   ktx2({
     isUASTC: true,
-    generateMipmap: true
+    generateMipmap: true,
+    // Required in Node.js for LDR inputs; use the decoder from the Node.js example above.
+    imageDecoder
   })
 );
 ```
+
+In browsers, omit `imageDecoder` to use the built-in decoder.
+
+### Runnable Node GLB example
+
+The repository includes a complete example that reads a GLB, converts its PNG/JPEG/WebP textures to KTX2, and writes a new GLB:
+
+```sh
+npm run example:node-ktx2 -- input.glb output.glb
+```
+
+See [`examples/optimize-glb.mjs`](./examples/optimize-glb.mjs).
 
 ## Benchmark
 
@@ -159,6 +173,34 @@ See [API.md](./API.md) for a focused API reference.
 
 ## Development
 
+### Main optimizer app
+
+Run this from the repository root:
+
+```sh
+npm run dev
+```
+
+This starts the React/Vite optimizer app at `http://localhost:1340`. The app imports this package through its built `dist/web` entry, so rebuild the encoder after changing files under `src/`:
+
+```sh
+npm run build --workspace babylonpress-ktx2-encoder
+```
+
+### Encoder development server
+
+Run this from `packages/babylonpress-ktx2-encoder`:
+
+```sh
+npm run dev
+```
+
+This starts a separate Vite server, normally at `http://localhost:5173`. Open `/` for the image conversion demo, `/benchmark/` for the benchmark, or `/benchmark/compare.html` for the comparison page. These pages import the encoder source directly, so source changes are reflected without rebuilding `dist`.
+
+Use `npm run demo` to open the image conversion demo automatically, or `npm run benchmark` to open `/benchmark/`.
+
+### Build and test commands
+
 ```sh
 npm run build
 npm test
@@ -166,5 +208,4 @@ npm run test:web
 npm run test:gltf
 npm run test:gltf:web
 npm run test:coverage
-npm run dev
 ```

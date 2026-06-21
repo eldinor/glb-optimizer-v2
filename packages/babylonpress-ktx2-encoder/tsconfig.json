@@ -16,7 +16,6 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "types": ["node"],
-    "typeRoots": ["./node_modules/@types"],
     "noFallthroughCasesInSwitch": true,
     "emitDeclarationOnly": false,
     "declaration": true,

@@ -38,6 +38,19 @@ describe("ktx2 transform node", () => {
     expect(ktx2Data).toEqual(expectedData);
   });
 
+  test("updates external texture URIs to the ktx2 extension", async () => {
+    const document = new Document();
+    const texture = document.createTexture("test")
+      .setImage(await readFile("./public/tests/DuckCM.png"))
+      .setMimeType("image/png")
+      .setURI("textures/test.png");
+
+    await document.transform(ktx2({ isUASTC: true, imageDecoder }));
+
+    expect(texture.getMimeType()).toBe("image/ktx2");
+    expect(texture.getURI()).toBe("textures/test.ktx2");
+  });
+
   test("filters textures by pattern", async () => {
     const document = new Document();
     const imageBuffer = await readFile("./public/tests/DuckCM.png");
@@ -92,6 +105,28 @@ describe("ktx2 transform node", () => {
 
     expect(baseColorTexture.getMimeType()).toBe("image/ktx2");
     expect(normalTexture.getMimeType()).toBe("image/png");
+  });
+
+  test("a slots filter excludes textures that are not assigned to a material slot", async () => {
+    const document = new Document();
+    const texture = document.createTexture("unused")
+      .setImage(await readFile("./public/tests/DuckCM.png"))
+      .setMimeType("image/png");
+
+    await document.transform(ktx2({ slots: /^baseColorTexture$/, isUASTC: true, imageDecoder }));
+
+    expect(texture.getMimeType()).toBe("image/png");
+  });
+
+  test("rejects the transform when texture encoding fails", async () => {
+    const document = new Document();
+    document.createTexture("test")
+      .setImage(await readFile("./public/tests/DuckCM.png"))
+      .setMimeType("image/png");
+
+    await expect(document.transform(ktx2({ isUASTC: true }))).rejects.toThrow(
+      "imageDecoder is required in Node.js"
+    );
   });
 
   test("creates KHR_texture_basisu when at least one texture is converted", async () => {

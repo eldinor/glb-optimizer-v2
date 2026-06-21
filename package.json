@@ -14,6 +14,7 @@
     "test": "vitest run src",
     "test:app": "vitest run src",
     "test:encoder": "npm run test --workspace babylonpress-ktx2-encoder",
+    "example:node-ktx2": "node ./packages/babylonpress-ktx2-encoder/examples/optimize-glb.mjs",
     "test:all": "npm run test:app && npm run test:encoder"
   },
   "dependencies": {

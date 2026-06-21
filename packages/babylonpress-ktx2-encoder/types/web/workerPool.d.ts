@@ -1,16 +1,16 @@
-import type { EncodeInput, IEncodeOptions, IEncodeWorkerClient } from "../type.js";
+import type { CubeBufferData, IEncodeOptions, IEncodeWorkerClient } from "../type.js";
 import { type KTX2WorkerOptions } from "./worker.js";
 export interface KTX2WorkerPoolOptions extends KTX2WorkerOptions {
     size?: number | "auto";
 }
 export interface KTX2WorkerPoolJob {
-    imageBuffer: EncodeInput;
+    imageBuffer: Uint8Array | CubeBufferData;
     options: Omit<IEncodeOptions, "imageDecoder" | "worker">;
 }
 export interface KTX2WorkerPool extends IEncodeWorkerClient {
     readonly size: number;
     readonly workers: readonly Worker[];
-    encode(imageBuffer: EncodeInput, options: Omit<IEncodeOptions, "imageDecoder" | "worker">): Promise<Uint8Array>;
+    encode(imageBuffer: Uint8Array | CubeBufferData, options: Omit<IEncodeOptions, "imageDecoder" | "worker">): Promise<Uint8Array>;
     encodeMany(jobs: readonly KTX2WorkerPoolJob[]): Promise<Uint8Array[]>;
     terminate(): void;
 }

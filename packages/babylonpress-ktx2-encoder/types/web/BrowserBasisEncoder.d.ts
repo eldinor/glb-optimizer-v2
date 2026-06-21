@@ -1,4 +1,4 @@
-import { EncodeInput, IEncodeOptions } from "../type.js";
+import { CubeBufferData, IEncodeOptions } from "../type.js";
 declare class BrowserBasisEncoder {
     init(options?: {
         jsUrl?: string;
@@ -17,7 +17,7 @@ declare class BrowserBasisEncoder {
      * @param options - encode options, see {@link IEncodeOptions}
      * @returns ktx2 file data
      */
-    encode(bufferOrBufferArray: EncodeInput, options?: Partial<IEncodeOptions>): Promise<Uint8Array>;
+    encode(bufferOrBufferArray: Uint8Array | CubeBufferData, options?: Partial<IEncodeOptions>): Promise<Uint8Array>;
 }
 export declare const browserEncoder: BrowserBasisEncoder;
 export {};

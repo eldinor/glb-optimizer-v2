@@ -1,4 +1,4 @@
-import type { IBasisModule } from "../../type";
+import type { IBasisModule } from "../type.js";
 
-declare const BASIS: () => IBasisModule;
+declare const BASIS: (options?: { wasmBinary?: ArrayBuffer | Uint8Array }) => Promise<IBasisModule>;
 export default BASIS;

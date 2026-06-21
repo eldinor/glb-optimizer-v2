@@ -1,4 +1,4 @@
-import { Document, Texture, Transform } from "@gltf-transform/core";
+import { Document, FileUtils, Texture, Transform } from "@gltf-transform/core";
 import { KHRTextureBasisu } from "@gltf-transform/extensions";
 import { normalizeError } from "../encoderShared.js";
 import { IEncodeOptions } from "../type.js";
@@ -77,7 +77,7 @@ export function ktx2(options: Partial<KTX2Options> = {}): Transform {
           return;
         }
 
-        if (slotsRe && slots.length && !slots.some((slot) => testPattern(slotsRe, slot))) {
+        if (slotsRe && !slots.some((slot) => testPattern(slotsRe, slot))) {
           logger.debug(`${prefix}: Skipping, [${slots.join(", ")}] excluded by "slots" parameter`);
           return;
         }
@@ -91,16 +91,24 @@ export function ktx2(options: Partial<KTX2Options> = {}): Transform {
 
           const srcByteLength = image.byteLength;
           const ktx2Data = await encodeToKTX2(image, { ...options });
+          const srcURI = texture.getURI();
 
           texture.setImage(ktx2Data);
           texture.setMimeType("image/ktx2");
+          if (srcURI && !srcURI.startsWith("data:")) {
+            const srcExtension = FileUtils.extension(srcURI);
+            const dstURI = srcExtension
+              ? `${srcURI.slice(0, -(srcExtension.length))}ktx2`
+              : `${srcURI}.ktx2`;
+            texture.setURI(dstURI);
+          }
 
           isKHRTextureBasisu = true;
 
           const dstByteLength = ktx2Data.byteLength;
           logger.debug(`${prefix}: Size = ${srcByteLength} -> ${dstByteLength} bytes`);
         } catch (error) {
-          logger.warn(`${prefix}: Failed to convert texture: ${normalizeError(error).message}`);
+          throw new Error(`${prefix}: Failed to convert texture: ${normalizeError(error).message}`, { cause: error });
         }
       })
     );
