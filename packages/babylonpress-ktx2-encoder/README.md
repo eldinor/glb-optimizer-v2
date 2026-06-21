@@ -2,7 +2,7 @@
 
 KTX2 (`.ktx2`) encoding utilities for browser and Node.js applications, built on Basis Universal.
 
-This package is maintained in the `eldinor/ktx2-encoder` fork and builds on the original work by Hu Song.
+This package is maintained in the [`eldinor/glb-optimizer-v2`](https://github.com/eldinor/glb-optimizer-v2/tree/master/packages/babylonpress-ktx2-encoder) monorepo and builds on the original work by Hu Song.
 
 ## Install
 
@@ -198,6 +198,16 @@ npm run dev
 This starts a separate Vite server, normally at `http://localhost:5173`. Open `/` for the image conversion demo, `/benchmark/` for the benchmark, or `/benchmark/compare.html` for the comparison page. These pages import the encoder source directly, so source changes are reflected without rebuilding `dist`.
 
 Use `npm run demo` to open the image conversion demo automatically, or `npm run benchmark` to open `/benchmark/`.
+
+### Package smoke test
+
+To build the package and run a small consumer-style test from `dist`:
+
+```sh
+npm run test:package
+```
+
+The smoke test imports `babylonpress-ktx2-encoder` and `babylonpress-ktx2-encoder/gltf-transform` by package name, performs a real Node encode, and validates the KTX2 file signature. It has no image-decoder dependency.
 
 ### Build and test commands
 

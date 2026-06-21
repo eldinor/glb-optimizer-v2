@@ -1,7 +1,7 @@
 {
   "version": "0.6.0",
   "name": "babylonpress-ktx2-encoder",
-  "description": "KTX2(.ktx2) encoder for browser and Node applications",
+  "description": "KTX2(.ktx2) encoder for browser and Node applications. Supports GLTF-Transform integration",
   "type": "module",
   "exports": {
     ".": {
@@ -21,11 +21,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/eldinor/ktx2-encoder.git"
+    "url": "git+https://github.com/eldinor/glb-optimizer-v2.git",
+    "directory": "packages/babylonpress-ktx2-encoder"
   },
-  "homepage": "https://github.com/eldinor/ktx2-encoder#readme",
+  "homepage": "https://github.com/eldinor/glb-optimizer-v2/tree/master/packages/babylonpress-ktx2-encoder#readme",
   "bugs": {
-    "url": "https://github.com/eldinor/ktx2-encoder/issues"
+    "url": "https://github.com/eldinor/glb-optimizer-v2/issues"
   },
   "author": {
     "name": "eldinor",
@@ -48,6 +49,7 @@
     "watch": "tsc -p tsconfig.json --watch",
     "build": "tsc -p tsconfig.json && node ./scripts/copy-basis.mjs",
     "test": "npm run test:node",
+    "test:package": "npm run build && node ./dist/package-smoke.mjs",
     "test:node": "vitest run ./test/encoderShared.test.ts ./test/node.test.ts ./test/repeat.node.test.ts ./test/gltf-transform.node.test.ts",
     "test:web": "vitest run --reporter=dot --browser.enabled --browser.name=chrome ./test/web.smoke.test.ts",
     "test:coverage": "vitest run --coverage ./test/encoderShared.test.ts ./test/node.test.ts ./test/repeat.node.test.ts ./test/gltf-transform.node.test.ts",
