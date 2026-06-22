@@ -173,6 +173,8 @@ The page is served from `/benchmark/`.
 
 See [API.md](./API.md) for a focused API reference.
 
+For the package's background and improvements over the original project, see [ARTICLE.md](./ARTICLE.md).
+
 ## Development
 
 ### Main optimizer app
