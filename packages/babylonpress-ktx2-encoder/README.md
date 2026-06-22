@@ -2,8 +2,6 @@
 
 KTX2 (`.ktx2`) encoding utilities for browser and Node.js applications, built on Basis Universal WASM. Supports UASTC and ETC1S compression.
 
-Part of [BabylonPress](https://babylonpress.org/).
-
 This package is maintained in the [`packages/babylonpress-ktx2-encoder`](https://github.com/eldinor/glb-optimizer-v2/tree/master/packages/babylonpress-ktx2-encoder) directory of the `eldinor/glb-optimizer-v2` repository and builds on the original work by Hu Song.
 
 Created by [BabylonPress](https://babylonpress.org/).
