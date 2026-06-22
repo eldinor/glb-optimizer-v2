@@ -1,8 +1,12 @@
 # babylonpress-ktx2-encoder
 
-KTX2 (`.ktx2`) encoding utilities for browser and Node.js applications, built on Basis Universal.
+KTX2 (`.ktx2`) encoding utilities for browser and Node.js applications, built on Basis Universal WASM. Supports UASTC and ETC1S compression.
 
-This package is maintained in the [`eldinor/glb-optimizer-v2`](https://github.com/eldinor/glb-optimizer-v2/tree/master/packages/babylonpress-ktx2-encoder) monorepo and builds on the original work by Hu Song.
+Part of [BabylonPress](https://babylonpress.org/).
+
+This package is maintained in the [`packages/babylonpress-ktx2-encoder`](https://github.com/eldinor/glb-optimizer-v2/tree/master/packages/babylonpress-ktx2-encoder) directory of the `eldinor/glb-optimizer-v2` repository and builds on the original work by Hu Song.
+
+Created by [BabylonPress](https://babylonpress.org/).
 
 ## Install
 
@@ -12,10 +16,10 @@ npm install babylonpress-ktx2-encoder
 
 ## What It Supports
 
-- browser encoding
-- browser worker encoding
-- browser worker pool encoding for batch jobs
-- Node.js encoding
+- browser KTX2 encoding
+- browser worker KTX2 encoding
+- browser worker pool KTX2 encoding for batch jobs
+- Node.js KTX2 encoding
 - glTF-Transform integration
 
 ## Browser
@@ -29,7 +33,7 @@ const png = new Uint8Array(await fetch("/texture.png").then((res) => res.arrayBu
 
 const ktx2 = await encodeToKTX2(png, {
   isUASTC: true,
-  generateMipmap: true
+  generateMipmap: true,
 });
 ```
 
@@ -43,7 +47,7 @@ Use `worker: true` when you want background encoding without changing the main A
 const ktx2 = await encodeToKTX2(png, {
   isUASTC: true,
   generateMipmap: true,
-  worker: true
+  worker: true,
 });
 ```
 
@@ -61,18 +65,18 @@ const pool = createKTX2WorkerPool({ size: 4 });
 const ktx2 = await encodeToKTX2(png, {
   isUASTC: true,
   generateMipmap: true,
-  worker: pool
+  worker: pool,
 });
 
 const results = await pool.encodeMany([
   {
     imageBuffer: textureA,
-    options: { isUASTC: true, generateMipmap: true }
+    options: { isUASTC: true, generateMipmap: true },
   },
   {
     imageBuffer: textureB,
-    options: { isUASTC: true, generateMipmap: true }
-  }
+    options: { isUASTC: true, generateMipmap: true },
+  },
 ]);
 
 pool.terminate();
@@ -111,7 +115,7 @@ async function imageDecoder(buffer: Uint8Array) {
   return {
     width: metadata.width!,
     height: metadata.height!,
-    data: new Uint8Array(rawBuffer)
+    data: new Uint8Array(rawBuffer),
   };
 }
 
@@ -120,7 +124,7 @@ const png = new Uint8Array(await fs.readFile("./texture.png"));
 const ktx2 = await encodeToKTX2(png, {
   isUASTC: true,
   generateMipmap: true,
-  imageDecoder
+  imageDecoder,
 });
 ```
 
@@ -134,8 +138,8 @@ await document.transform(
     isUASTC: true,
     generateMipmap: true,
     // Required in Node.js for LDR inputs; use the decoder from the Node.js example above.
-    imageDecoder
-  })
+    imageDecoder,
+  }),
 );
 ```
 
